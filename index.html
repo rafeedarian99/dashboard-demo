@@ -1,0 +1,3137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Amgen Capital Program — Network Procurement Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500;600;700&display=swap');
+
+/* ═══════════════════════ DESIGN TOKENS ═══════════════════════ */
+:root{
+  /* Core brand palette — unified, deduplicated */
+  --navy-deep:   #12243d;   /* deepest navy — headers, nav bar */
+  --navy:        #1a2b4a;   /* primary navy — card headers, sections */
+  --navy-mid:    #2c3e60;   /* mid navy — active tab, hdr strip */
+  --teal:        #0097d4;   /* primary teal — accents */
+  --teal-dark:   #007bbd;
+  --cyan:        #00b8d9;   /* cyan — borders & highlights */
+
+  /* Status — RAG */
+  --green:       #28a745;
+  --green-bg:    #d4edda;
+  --green-fg:    #1b6b31;
+  --amber:       #ffc107;
+  --amber-bg:    #fff3cd;
+  --amber-fg:    #856404;
+  --red:         #dc3545;
+  --red-bg:      #f8d7da;
+  --red-fg:      #721c24;
+
+  /* Neutrals */
+  --bg-page:     #d0daea;
+  --bg-app:      #f0f4f8;
+  --bg-card:     #ffffff;
+  --bg-alt:      #f8fafc;
+  --bg-hover:    #f0f4fa;
+  --border:      #d0dcea;
+  --border-soft: #edf1f7;
+  --text:        #222;
+  --text-muted:  #888;
+  --text-soft:   #666;
+
+  /* Project accent colors */
+  --p-anc2:      #0097d4;
+  --p-adl2:      #7c4dff;
+  --p-c01998:    #00838f;
+  --p-c01204:    #1a2b4a;
+
+  /* Dummy-data marker */
+  --dummy-fg:    #dc3545;
+  --dummy-bg:    #fff0f0;
+
+  /* Typography */
+  --font-body:   'Barlow', sans-serif;
+  --font-hdr:    'Barlow Condensed', sans-serif;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+
+body{
+  font-family:var(--font-body);
+  background:var(--bg-page);
+  font-size:13px;
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:10px 10px 20px;
+}
+
+/* ═══════════════════════ LAYOUT SHELL ═══════════════════════ */
+.dc{
+  width:1400px;
+  background:var(--bg-app);
+  box-shadow:0 4px 30px rgba(0,0,0,.15);
+  border-radius:4px;
+  overflow:hidden;
+}
+
+/* ─── Nav bar ─── */
+.nav-bar{
+  display:flex;
+  background:var(--navy-deep);
+  border-bottom:2px solid var(--teal-dark);
+  overflow-x:auto;
+}
+.nav-tab{
+  padding:10px 16px;
+  font-family:var(--font-hdr);
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.4px;
+  cursor:pointer;
+  white-space:nowrap;
+  color:#fff;
+  background:var(--teal);
+  border:none;
+  border-right:1px solid rgba(255,255,255,.15);
+  transition:background .2s;
+}
+.nav-tab:hover{background:#2a4a7f;}
+.nav-tab.active{background:var(--navy-mid);}
+.nav-tab.rpt{background:var(--navy);border-left:2px solid var(--cyan);}
+
+/* ─── Header strip ─── */
+.hdr-strip{
+  background:var(--navy-mid);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:9px 18px;
+  border-bottom:1px solid var(--navy-deep);
+}
+.hdr-left{display:flex;align-items:center;gap:12px;}
+.logo-box{
+  width:28px;height:28px;
+  background:var(--teal);
+  border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;color:#fff;font-size:14px;
+}
+.hdr-title{
+  font-family:var(--font-hdr);
+  font-size:16px;font-weight:600;color:#fff;
+  letter-spacing:.3px;
+}
+.hdr-right{
+  color:#8aa0c0;
+  font-size:11px;
+}
+.hdr-right span{color:#fff;font-weight:600;}
+
+/* ─── Upload bar ─── */
+.upload-bar{
+  background:linear-gradient(90deg,#1a3a20 0%,#2c5030 100%);
+  padding:10px 18px;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  border-bottom:2px solid var(--green);
+}
+.upload-bar label{
+  font-family:var(--font-hdr);
+  font-weight:700;color:#fff;
+  text-transform:uppercase;letter-spacing:1px;
+  font-size:12px;
+}
+.upload-bar input{font-size:12px;color:#fff;}
+.upload-bar .st{
+  font-size:11px;padding:3px 12px;border-radius:12px;font-weight:600;
+}
+.st-wait{background:rgba(255,193,7,.2);color:#ffc107;border:1px solid rgba(255,193,7,.4);}
+.st-ok  {background:rgba(40,167,69,.2);color:#28a745;border:1px solid rgba(40,167,69,.4);}
+.st-err {background:rgba(220,53,69,.2);color:#dc3545;border:1px solid rgba(220,53,69,.4);}
+.upload-hint{color:rgba(255,255,255,.55);font-size:10px;margin-left:auto;}
+
+/* ─── Main content ─── */
+.main{padding:12px;max-width:100%;overflow:hidden;}
+.page{display:none;}
+.page.active{display:block;}
+
+/* ═══════════════════════ GRID ═══════════════════════ */
+.row{display:flex;gap:10px;margin-bottom:10px;}
+.col-3 {flex:0 0 calc(25%    - 8px);min-width:0;overflow:hidden;}
+.col-4 {flex:0 0 calc(33.33% - 7px);min-width:0;overflow:hidden;}
+.col-6 {flex:0 0 calc(50%    - 5px);min-width:0;overflow:hidden;}
+.col-8 {flex:0 0 calc(66.66% - 5px);min-width:0;overflow:hidden;}
+.col-12{flex:0 0 100%;          min-width:0;overflow:hidden;}
+
+/* ═══════════════════════ CARDS & SECTIONS ═══════════════════════ */
+.card{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:4px;
+  overflow:hidden;
+  min-width:0;
+  margin-bottom:10px;
+}
+.card:last-child{margin-bottom:0;}
+.card-hdr{
+  background:var(--navy);
+  color:#fff;
+  padding:8px 14px;
+  font-family:var(--font-hdr);
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:.3px;
+  border-left:3px solid var(--cyan);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.card-hdr .sub{
+  font-family:var(--font-body);
+  font-weight:400;
+  font-size:10px;
+  font-style:italic;
+  color:rgba(255,255,255,.7);
+  letter-spacing:0;
+}
+.card-hdr.green{border-left-color:var(--green);}
+.card-hdr.amber{border-left-color:var(--amber);}
+.card-hdr.red  {border-left-color:var(--red);}
+.card-hdr.anc2 {border-left-color:var(--p-anc2);}
+.card-hdr.adl2 {border-left-color:var(--p-adl2);}
+.card-hdr.c01998{border-left-color:var(--p-c01998);}
+.card-hdr.c01204{border-left-color:var(--p-c01204);}
+.card-body{padding:12px 14px;overflow:hidden;}
+.card-body.flush{padding:0;}
+
+/* Section header (same visual as card-hdr but standalone) */
+.sec-hdr{
+  background:var(--navy);
+  color:#fff;
+  padding:7px 14px;
+  font-family:var(--font-hdr);
+  font-size:13px;
+  font-weight:600;
+  border-left:3px solid var(--cyan);
+  margin-bottom:8px;
+  border-radius:4px 4px 0 0;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.sec-hdr .sub{
+  font-family:var(--font-body);
+  font-weight:400;
+  font-size:10px;
+  font-style:italic;
+  color:rgba(255,255,255,.7);
+}
+
+/* Chart wrapper */
+.cw{padding:8px 10px;position:relative;overflow:hidden;}
+.cw canvas{
+  position:absolute;
+  top:8px;left:10px;right:10px;bottom:8px;
+  width:calc(100% - 20px)!important;
+  height:calc(100% - 16px)!important;
+}
+.cw.h220{height:220px;}
+.cw.h260{height:260px;}
+canvas{display:block;}
+
+/* ═══════════════════════ TABLES ═══════════════════════ */
+table.dt{
+  width:100%;
+  border-collapse:collapse;
+  font-size:11px;
+}
+table.dt th{
+  background:var(--navy);
+  color:#fff;
+  padding:7px 9px;
+  text-align:left;
+  font-weight:600;
+  font-size:10px;
+  letter-spacing:.2px;
+  white-space:nowrap;
+}
+table.dt td{
+  padding:5px 9px;
+  border-bottom:1px solid var(--border-soft);
+  vertical-align:middle;
+}
+table.dt tr:nth-child(even) td{background:var(--bg-alt);}
+table.dt tr:hover td{background:var(--bg-hover);}
+table.dt th.num,table.dt td.num{text-align:center;}
+table.dt th.r,table.dt td.r{text-align:right;}
+table.dt td.bold{font-weight:600;}
+table.dt tr.row-critical td{background:#fff5f5;}
+table.dt tr.row-risk     td{background:#fffbf0;}
+
+.t-scroll{overflow-x:auto;max-height:320px;overflow-y:auto;}
+
+/* Rank circle — used in vendor & equip tables */
+.rank{
+  display:inline-flex;
+  align-items:center;justify-content:center;
+  width:22px;height:22px;
+  border-radius:50%;
+  font-size:10px;font-weight:700;
+}
+.rank.rnk-critical{background:#fcebeb;color:#791f1f;}
+.rank.rnk-risk    {background:#faeeda;color:#633806;}
+.rank.rnk-ok      {background:#eaf3de;color:#27500a;}
+.rank.rnk-none    {background:#e6f1fb;color:#0c447c;}
+
+/* ═══════════════════════ BADGES & PILLS ═══════════════════════ */
+.badge{
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:3px;
+  font-size:10px;
+  font-weight:600;
+  white-space:nowrap;
+}
+.bg-green{background:var(--green);color:#fff;}
+.bg-amber{background:var(--amber);color:#333;}
+.bg-red  {background:var(--red);color:#fff;}
+.bg-blue {background:var(--teal);color:#fff;}
+
+/* Report-style pill (smaller) */
+.rs{display:inline-block;padding:1px 6px;border-radius:2px;font-size:9px;font-weight:700;}
+.rs-g{background:var(--green-bg);color:var(--green-fg);}
+.rs-a{background:var(--amber-bg);color:var(--amber-fg);}
+.rs-r{background:var(--red-bg);color:var(--red-fg);}
+
+/* Delta values in cells */
+.d-pos{color:var(--green);font-weight:600;}
+.d-neg{color:var(--red);font-weight:700;}
+.d-flat{color:var(--amber-fg);font-weight:500;}
+
+/* ═══════════════════════ KPI STRIP ═══════════════════════ */
+.kpi-strip{
+  display:flex;
+  gap:0;
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:4px;
+  margin-bottom:10px;
+  overflow:hidden;
+}
+.kpi-item{
+  flex:1;
+  padding:12px 14px;
+  border-right:1px solid var(--border-soft);
+  text-align:center;
+}
+.kpi-item:last-child{border-right:none;}
+.kpi-item.kpi-hl{background:#f0f6fb;}
+.kpi-val{
+  font-family:var(--font-hdr);
+  font-size:30px;
+  font-weight:700;
+  line-height:1.05;
+}
+.kpi-lbl{
+  font-size:9.5px;
+  color:var(--text-muted);
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  font-weight:600;
+  margin-top:4px;
+}
+.kpi-sub{font-size:10px;color:#aaa;margin-top:2px;}
+.kpi-val.v-navy  {color:var(--navy);}
+.kpi-val.v-teal  {color:var(--teal);}
+.kpi-val.v-green {color:var(--green);}
+.kpi-val.v-amber {color:var(--amber-fg);}
+.kpi-val.v-red   {color:var(--red);}
+.kpi-val.v-muted {color:#bbb;}
+
+/* ═══════════════════════ MAP ═══════════════════════ */
+.map-wrap{
+  position:relative;
+  height:220px;
+  background:var(--bg-app);
+  overflow:hidden;
+  border:1px solid var(--border-soft);
+  border-radius:3px;
+}
+.map-grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(0,123,189,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,123,189,.04) 1px,transparent 1px);
+  background-size:30px 30px;
+}
+.map-pin{position:absolute;z-index:2;}
+.map-dot{
+  width:14px;height:14px;border-radius:50%;
+  background:var(--teal);
+  border:2px solid #fff;
+  box-shadow:0 0 8px rgba(0,151,212,.4);
+  animation:mp 2.5s ease-in-out infinite;
+  cursor:pointer;
+}
+.map-lbl{
+  position:absolute;bottom:120%;left:50%;transform:translateX(-50%);
+  background:var(--navy);color:#fff;
+  font-family:var(--font-hdr);
+  font-size:10px;font-weight:600;
+  padding:3px 8px;border-radius:3px;
+  white-space:nowrap;opacity:0;
+  transition:opacity .2s;pointer-events:none;
+}
+.map-pin:hover .map-lbl{opacity:1;}
+@keyframes mp{
+  0%,100%{box-shadow:0 0 6px rgba(0,151,212,.3);}
+  50%    {box-shadow:0 0 16px rgba(0,151,212,.7);}
+}
+
+/* ═══════════════════════ PORTFOLIO EXPOSURE ═══════════════════════ */
+.expo-total{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:12px;padding-bottom:10px;
+  border-bottom:1px solid var(--border-soft);
+}
+.expo-val{font-family:var(--font-hdr);font-size:28px;font-weight:700;color:var(--red);}
+.expo-cap{font-size:9.5px;color:var(--text-muted);line-height:1.25;}
+.expo-row{margin-bottom:10px;}
+.expo-row:last-child{margin-bottom:0;}
+.expo-row-top{display:flex;justify-content:space-between;font-size:10.5px;margin-bottom:3px;}
+.expo-row-top b{font-weight:600;}
+.expo-bar{height:6px;background:var(--border-soft);border-radius:3px;overflow:hidden;}
+.expo-bar span{display:block;height:100%;border-radius:3px;}
+
+/* ═══════════════════════ RAG GRID ═══════════════════════ */
+.rag-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  padding:12px;
+}
+.rag-cell{
+  border-radius:4px;
+  padding:9px 12px;
+}
+.rag-cell .rag-z{
+  font-family:var(--font-hdr);
+  font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.4px;
+}
+.rag-cell .rag-d{font-size:10px;color:#555;margin-top:2px;}
+.rag-g{background:var(--green-bg);border-left:4px solid var(--green);}
+.rag-g .rag-z{color:var(--green-fg);}
+.rag-a{background:var(--amber-bg);border-left:4px solid var(--amber);}
+.rag-a .rag-z{color:var(--amber-fg);}
+.rag-r{background:var(--red-bg);  border-left:4px solid var(--red);}
+.rag-r .rag-z{color:var(--red-fg);}
+
+/* ═══════════════════════ BENCHMARK TILES ═══════════════════════ */
+.bench-grid{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:8px;
+  padding:12px;
+}
+.bench-tile{
+  border-radius:4px;
+  padding:10px;
+  border:1px solid;
+}
+.bench-tile.t-g{background:#f0fbf0;border-color:#c3e6cb;}
+.bench-tile.t-a{background:#fffbf0;border-color:#ffeaa7;}
+.bench-tile.t-r{background:#fff5f5;border-color:#f5c6cb;}
+.bench-name{
+  font-weight:600;color:var(--navy);
+  font-size:11px;margin-bottom:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.bench-val{
+  font-family:var(--font-hdr);
+  font-size:22px;font-weight:700;line-height:1;
+}
+.bench-val .u{font-size:10px;font-weight:400;color:var(--text-muted);}
+.bench-val.v-r{color:var(--red);}
+.bench-val.v-a{color:var(--amber-fg);}
+.bench-val.v-g{color:var(--green);}
+.bench-meta{font-size:9px;color:var(--text-muted);margin-top:4px;}
+.bench-sites{font-size:9px;color:#aaa;margin-top:2px;}
+.bench-prog{
+  margin-top:5px;height:4px;
+  background:var(--border-soft);
+  border-radius:2px;overflow:hidden;
+}
+.bench-prog span{display:block;height:100%;border-radius:2px;}
+
+/* ═══════════════════════ ALERTS ═══════════════════════ */
+.alerts{padding:8px 12px;border-top:1px solid var(--border-soft);font-size:10px;}
+.alerts-hdr{
+  font-family:var(--font-hdr);
+  font-size:10.5px;font-weight:600;
+  color:var(--navy);
+  text-transform:uppercase;
+  letter-spacing:.4px;margin-bottom:4px;
+}
+.alert-item{
+  display:flex;gap:6px;padding:3px 0;
+  border-bottom:1px solid #f0f4f8;
+  font-size:10px;
+}
+.alert-item:last-child{border-bottom:none;}
+.alert-item .txt{color:#444;}
+.alert-empty{color:var(--green);font-size:10px;font-weight:600;}
+
+/* ═══════════════════════ EMPTY STATE ═══════════════════════ */
+.empty-state{
+  padding:20px;text-align:center;color:#bbb;
+  font-size:11px;
+}
+
+/* ═══════════════════════ REPORT BUILDER ═══════════════════════ */
+.rpt-builder{
+  display:grid;
+  grid-template-columns:260px 1fr;
+  gap:12px;
+  padding:12px;
+}
+.rpt-panel{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:4px;
+  overflow:hidden;
+}
+.rpt-panel-hdr{
+  background:var(--navy);color:#fff;
+  padding:8px 14px;
+  font-family:var(--font-hdr);
+  font-size:13px;font-weight:700;
+  border-left:3px solid var(--cyan);
+}
+.cfg-sec{
+  border-bottom:1px solid var(--border-soft);
+  padding:10px 13px;
+}
+.cfg-sec:last-child{border-bottom:none;}
+.cfg-lbl{
+  font-size:9.5px;font-weight:700;
+  color:#8aa0c0;
+  text-transform:uppercase;
+  letter-spacing:.7px;
+  margin-bottom:6px;
+}
+.cfg-input{
+  width:100%;
+  border:1px solid #c8d6e5;
+  border-radius:3px;
+  padding:6px 8px;
+  font-size:12px;
+  font-family:var(--font-body);
+  color:var(--text);
+  margin-bottom:6px;
+  background:var(--bg-alt);
+}
+.sec-chk{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 0;
+  font-size:12px;color:#333;
+  cursor:pointer;
+}
+.sec-chk input{accent-color:var(--teal);width:14px;height:14px;}
+.btn-gen{
+  width:100%;background:var(--teal);color:#fff;
+  border:none;border-radius:4px;padding:10px;
+  font-family:var(--font-hdr);
+  font-size:14px;font-weight:700;
+  cursor:pointer;
+}
+.btn-gen:hover{background:var(--navy);}
+.btn-print{
+  width:100%;background:#fff;color:var(--navy);
+  border:1.5px solid var(--navy);
+  border-radius:4px;padding:8px;
+  font-family:var(--font-hdr);
+  font-size:13px;font-weight:600;
+  cursor:pointer;margin-top:6px;
+}
+.btn-print:hover{background:var(--navy);color:#fff;}
+.rpt-preview{
+  background:#e8edf4;
+  min-height:600px;
+  overflow-y:auto;
+}
+.rpt-doc{
+  max-width:800px;
+  margin:14px auto;
+  background:#fff;
+  box-shadow:0 4px 20px rgba(0,0,0,.14);
+  border-radius:2px;
+  overflow:hidden;
+  font-family:var(--font-body);
+}
+.rpt-cover{
+  background:linear-gradient(135deg,var(--navy-deep) 0%,var(--navy) 60%,#1e3460 100%);
+  padding:42px 36px 32px;color:#fff;
+}
+.rpt-title{
+  font-family:var(--font-hdr);
+  font-size:26px;font-weight:700;margin-bottom:6px;
+}
+.rpt-accent{
+  height:4px;
+  background:linear-gradient(90deg,var(--cyan),var(--teal) 60%,transparent);
+}
+.rpt-body{
+  padding:22px 28px;
+  font-size:11px;line-height:1.6;
+  color:#333;
+}
+.rpt-sec{
+  font-family:var(--font-hdr);
+  font-size:13px;font-weight:700;
+  color:var(--navy);
+  text-transform:uppercase;
+  letter-spacing:.7px;
+  border-bottom:2px solid var(--teal);
+  padding-bottom:4px;
+  margin:16px 0 8px;
+}
+.rpt-sec:first-child{margin-top:0;}
+.rpt-kpi-row{
+  display:flex;gap:6px;
+  margin-bottom:10px;flex-wrap:wrap;
+}
+.rpt-kpi{
+  flex:1;min-width:80px;
+  border:1px solid #dde6f0;
+  border-top:3px solid var(--teal);
+  border-radius:3px;
+  padding:7px 8px;
+  text-align:center;
+}
+.rpt-kpi.g{border-top-color:var(--green);}
+.rpt-kpi.r{border-top-color:var(--red);}
+.rpt-kpi.a{border-top-color:var(--amber);}
+.rpt-kpi .rv{
+  font-size:18px;font-weight:700;
+  font-family:var(--font-hdr);
+  color:var(--navy);
+}
+.rpt-kpi .rl{
+  font-size:8.5px;color:var(--text-muted);
+  text-transform:uppercase;margin-top:1px;
+}
+table.rt{
+  width:100%;
+  border-collapse:collapse;
+  font-size:10px;
+  margin-bottom:8px;
+}
+table.rt th{
+  background:var(--navy);color:#fff;
+  padding:4px 6px;
+  text-align:left;
+  font-weight:600;font-size:9px;
+}
+table.rt td{
+  padding:3px 6px;
+  border-bottom:1px solid var(--border-soft);
+}
+table.rt tr:nth-child(even) td{background:#f8fafd;}
+
+.footer{
+  text-align:center;padding:10px;
+  color:var(--text-muted);
+  font-size:10px;font-style:italic;
+  border-top:1px solid #dce5f0;
+  margin-top:10px;
+}
+.stelic{
+  font-family:var(--font-hdr);
+  font-size:13px;font-weight:700;
+  letter-spacing:1px;
+  color:var(--teal);
+}
+
+/* Dummy data legend hint */
+.dummy-note{
+  background:var(--dummy-bg);
+  border-left:3px solid var(--dummy-fg);
+  padding:6px 10px;
+  font-size:10px;
+  color:var(--dummy-fg);
+  margin-bottom:10px;
+  border-radius:3px;
+  display:none;
+}
+.dummy-note.show{display:block;}
+
+/* ═══════════════════════ EXECUTIVE SUMMARY CARD ═══════════════════════ */
+.exec-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+  font-size:10.5px;
+}
+.exec-col-title{
+  font-family:var(--font-hdr);
+  font-size:10px;font-weight:700;
+  color:var(--navy);
+  text-transform:uppercase;
+  letter-spacing:.6px;
+  margin-bottom:5px;
+  padding-bottom:3px;
+  border-bottom:1px solid var(--border-soft);
+  display:flex;align-items:center;gap:5px;
+}
+.exec-col-title::before{
+  content:'';
+  width:6px;height:6px;
+  border-radius:50%;
+  background:var(--red);
+  display:inline-block;
+}
+.exec-item{
+  display:flex;gap:6px;
+  margin-bottom:4px;
+  line-height:1.4;
+}
+.exec-item .dot{
+  flex:0 0 6px;
+  width:6px;height:6px;
+  border-radius:50%;
+  margin-top:5px;
+}
+.exec-item .dot.d-r{background:var(--red);}
+.exec-item .dot.d-a{background:var(--amber);}
+.exec-item .dot.d-g{background:var(--green);}
+.exec-item .txt{flex:1;color:#333;font-size:10px;}
+.exec-item .txt b{color:var(--navy);font-weight:700;}
+
+/* Recommended actions — horizontal band of numbered cards */
+.actions-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  padding:12px 14px;
+}
+.action-card{
+  display:flex;gap:10px;
+  background:var(--bg-alt);
+  border:1px solid var(--border-soft);
+  border-radius:4px;
+  padding:10px 12px;
+  align-items:flex-start;
+}
+.action-num{
+  flex:0 0 26px;
+  width:26px;height:26px;
+  border-radius:50%;
+  background:var(--navy);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-hdr);
+  font-size:13px;font-weight:700;
+}
+.action-text{
+  flex:1;
+  font-size:10.5px;
+  color:#333;
+  line-height:1.45;
+}
+.action-text b{color:var(--navy);}
+
+/* ═══════════════════════ PIE CHARTS (Portfolio Exposure) ═══════════════ */
+.pie-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid var(--border-soft);
+  min-width:0;
+}
+.pie-block{
+  text-align:center;
+  min-width:0;
+  overflow:hidden;
+}
+.pie-title{
+  font-family:var(--font-hdr);
+  font-size:10px;
+  font-weight:700;
+  color:var(--navy);
+  text-transform:uppercase;
+  letter-spacing:.4px;
+  margin-bottom:4px;
+}
+.pie-wrap{
+  position:relative;
+  width:100%;
+  height:150px;
+}
+.pie-legend{
+  margin-top:4px;
+  font-size:9px;
+  line-height:1.4;
+  text-align:left;
+  overflow:hidden;
+}
+.pie-legend-item{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  padding:1px 0;
+}
+.pie-legend-swatch{
+  flex:0 0 8px;
+  width:8px;height:8px;
+  border-radius:2px;
+  display:inline-block;
+}
+.pie-legend-name{
+  flex:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  color:#444;
+}
+.pie-legend-pct{
+  flex:0 0 auto;
+  color:var(--text-muted);
+  font-weight:600;
+  margin-left:4px;
+}
+
+/* ═══════════════════════ IMPROVED TREND CHARTS ═══════════════════════ */
+.trend-block{
+  border-top:1px solid var(--border-soft);
+  background:linear-gradient(180deg,#fafbfd 0%,#fff 100%);
+  padding:14px 16px 12px;
+}
+.trend-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  margin-bottom:10px;
+}
+.trend-title{
+  font-family:var(--font-hdr);
+  font-size:11px;font-weight:700;
+  color:var(--navy);
+  text-transform:uppercase;
+  letter-spacing:.5px;
+}
+.trend-sub{
+  font-size:9.5px;
+  color:var(--text-muted);
+  font-style:italic;
+  margin-top:2px;
+}
+.trend-wrap{
+  height:200px;
+  position:relative;
+  background:#fff;
+  border:1px solid var(--border-soft);
+  border-radius:3px;
+  padding:8px;
+}
+
+/* ═══════════════════════ RAG LEGEND (under KPI strip) ═══════════════════════ */
+.rag-legend{
+  display:flex;
+  gap:18px;
+  align-items:center;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:8px 14px;
+  margin-bottom:10px;
+  flex-wrap:wrap;
+}
+.rag-legend-group{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding-right:18px;
+  border-right:1px solid var(--border-soft);
+}
+.rag-legend-group:last-of-type{border-right:none;}
+.rag-swatch{
+  width:16px; height:16px;
+  border-radius:3px;
+  display:inline-block;
+  flex:0 0 16px;
+}
+.rag-sw-r{background:var(--red); box-shadow:inset 0 0 0 2px var(--red-bg);}
+.rag-sw-a{background:var(--amber); box-shadow:inset 0 0 0 2px var(--amber-bg);}
+.rag-sw-g{background:var(--green); box-shadow:inset 0 0 0 2px var(--green-bg);}
+.rag-legend-title{
+  font-family:var(--font-hdr);
+  font-size:12px;
+  font-weight:700;
+  color:var(--navy);
+  letter-spacing:.3px;
+  line-height:1.1;
+}
+.rag-legend-def{
+  font-size:10px;
+  color:var(--text-soft);
+  line-height:1.2;
+  margin-top:1px;
+}
+.rag-legend-note{
+  flex:1;
+  font-size:10px;
+  color:var(--text-muted);
+  font-style:italic;
+  text-align:right;
+  min-width:200px;
+}
+
+/* ═══════════════════════ KPI CLICKABLE + TOOLTIP ═══════════════════════ */
+.kpi-item.kpi-clickable{
+  cursor:pointer;
+  position:relative;
+  transition:background .15s;
+}
+.kpi-item.kpi-clickable:hover{background:#fff5f5;}
+
+/* Clickable critical cell in Project Summary table */
+.crit-click{
+  cursor:pointer;
+  transition:background .12s;
+  text-decoration:underline;
+  text-decoration-style:dotted;
+  text-decoration-color:var(--red);
+  text-underline-offset:2px;
+}
+.crit-click:hover{
+  background:#fff5f5;
+  color:#a02030!important;
+}
+.crit-click .info-dot{
+  color:var(--red);
+  font-size:9px;
+  margin-left:2px;
+  opacity:.7;
+}
+.info-dot{
+  font-size:10px;
+  color:var(--red);
+  margin-left:3px;
+  opacity:.7;
+}
+.kpi-tooltip{
+  position:absolute;
+  top:calc(100% + 6px);
+  left:50%;
+  transform:translateX(-50%);
+  background:var(--navy);
+  color:#fff;
+  border-radius:4px;
+  padding:10px 12px;
+  min-width:280px;
+  max-width:340px;
+  box-shadow:0 6px 20px rgba(0,0,0,.25);
+  z-index:500;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .15s;
+  text-align:left;
+}
+.kpi-tooltip::before{
+  content:'';
+  position:absolute;
+  top:-5px; left:50%; transform:translateX(-50%);
+  width:0; height:0;
+  border-left:6px solid transparent;
+  border-right:6px solid transparent;
+  border-bottom:6px solid var(--navy);
+}
+.kpi-item.kpi-clickable:hover .kpi-tooltip{opacity:1;}
+.kpi-tooltip .tt-head{
+  font-family:var(--font-hdr);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.4px;
+  border-bottom:1px solid rgba(255,255,255,.18);
+  padding-bottom:5px;
+  margin-bottom:6px;
+}
+.kpi-tooltip .tt-row{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  font-size:10.5px;
+  padding:2px 0;
+  border-bottom:1px dotted rgba(255,255,255,.1);
+}
+.kpi-tooltip .tt-pkg{font-weight:600;flex:0 0 auto;min-width:60px;}
+.kpi-tooltip .tt-site{flex:1;opacity:.75;font-size:10px;}
+.kpi-tooltip .tt-days{color:#ffb7b7;font-weight:700;flex:0 0 auto;}
+.kpi-tooltip .tt-more{
+  margin-top:6px;
+  text-align:center;
+  font-size:10px;
+  font-style:italic;
+  color:#ffc7a0;
+}
+
+/* ═══════════════════════ CRITICAL PACKAGES MODAL ═══════════════════════ */
+.crit-modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(18,36,61,.55);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.crit-modal.open{display:flex;}
+.crit-dialog{
+  background:#fff;
+  border-radius:6px;
+  width:100%;
+  max-width:920px;
+  max-height:85vh;
+  display:flex;
+  flex-direction:column;
+  box-shadow:0 10px 40px rgba(0,0,0,.3);
+  overflow:hidden;
+}
+.crit-hdr{
+  background:var(--red);
+  color:#fff;
+  padding:14px 18px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-left:3px solid #a02030;
+}
+.crit-body{
+  flex:1;
+  overflow-y:auto;
+  padding:14px 18px;
+}
+.crit-body table.dt{font-size:11px;}
+.crit-body table.dt th{position:sticky;top:0;z-index:2;}
+
+/* ═══════════════════════ SCORECARD ENHANCEMENTS (filters + scroll + sort) ═══════════════════════ */
+.sc-filterbar{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  padding:8px 14px;
+  background:#fafbfd;
+  border-bottom:1px solid var(--border-soft);
+  font-size:11px;
+}
+.sc-filter-lbl{
+  font-family:var(--font-hdr);
+  font-size:10px;
+  font-weight:700;
+  color:var(--text-muted);
+  text-transform:uppercase;
+  letter-spacing:.5px;
+}
+.sc-search{
+  flex:1;
+  min-width:140px;
+  max-width:260px;
+  padding:6px 10px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  font-size:11px;
+  font-family:var(--font-body);
+  outline:none;
+}
+.sc-search:focus{border-color:var(--teal);}
+.sc-proj-chips{
+  display:flex;
+  gap:4px;
+  flex-wrap:wrap;
+}
+.sc-chip{
+  padding:3px 10px;
+  border:1px solid var(--border);
+  background:#fff;
+  border-radius:12px;
+  font-size:10px;
+  cursor:pointer;
+  color:var(--text-soft);
+  font-weight:600;
+  transition:all .12s;
+  user-select:none;
+}
+.sc-chip:hover{border-color:var(--teal);color:var(--navy);}
+.sc-chip.active{
+  background:var(--teal);
+  color:#fff;
+  border-color:var(--teal);
+}
+.sc-chip.all-chip.active{background:var(--navy);border-color:var(--navy);}
+.sc-count{
+  font-size:10px;
+  color:var(--text-muted);
+  font-style:italic;
+  margin-left:auto;
+}
+
+/* Scrollable scorecard body — fixed widget height with scrolling data */
+.sc-table-wrap{
+  max-height:280px;
+  overflow-y:auto;
+  overflow-x:auto;
+  border-top:1px solid var(--border-soft);
+}
+.sc-table-wrap::-webkit-scrollbar{width:8px;height:8px;}
+.sc-table-wrap::-webkit-scrollbar-thumb{background:#c8d6e5;border-radius:4px;}
+.sc-table-wrap table.dt{margin:0;}
+.sc-table-wrap table.dt thead th{
+  position:sticky; top:0; z-index:3;
+  background:var(--navy);
+  cursor:pointer;
+  user-select:none;
+  padding-right:18px;  /* space for sort arrow */
+}
+.sc-table-wrap table.dt thead th:hover{background:#2a4370;}
+.sc-table-wrap table.dt thead th .sort-arrow{
+  position:absolute;
+  right:6px; top:50%; transform:translateY(-50%);
+  font-size:9px;
+  opacity:.5;
+}
+.sc-table-wrap table.dt thead th.sort-asc .sort-arrow,
+.sc-table-wrap table.dt thead th.sort-desc .sort-arrow{opacity:1;color:#00e5ff;}
+
+/* ═══════════════════════ BENCHMARK TILE ENHANCEMENTS ═══════════════════════ */
+.bench-filter-row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  padding:8px 14px;
+  background:#fafbfd;
+  border-bottom:1px solid var(--border-soft);
+  font-size:11px;
+  flex-wrap:wrap;
+}
+.bench-tile .bench-vals{
+  display:flex;
+  gap:10px;
+  align-items:baseline;
+  margin:4px 0 2px;
+}
+.bench-tile .bench-val{margin:0;}
+.bench-tile .bench-val-sub{
+  font-size:10px;
+  color:var(--text-muted);
+  font-weight:600;
+}
+.bench-tile .bench-val-sub b{
+  color:var(--navy);
+  font-family:var(--font-hdr);
+  font-size:13px;
+  font-weight:700;
+}
+.bench-tile .bench-value-row{
+  display:flex;
+  justify-content:space-between;
+  font-size:10px;
+  color:#555;
+  margin-top:3px;
+  padding-top:3px;
+  border-top:1px dashed var(--border-soft);
+}
+.bench-tile .bench-value-row b{
+  color:var(--green);
+  font-family:var(--font-hdr);
+  font-size:12px;
+}
+
+@media print{
+  .nav-bar,.hdr-strip,.upload-bar,.rpt-builder>:first-child,.crit-modal{display:none!important;}
+  .rpt-builder{grid-template-columns:1fr!important;}
+  .rpt-preview{background:#fff!important;}
+  .rpt-doc{box-shadow:none!important;margin:0!important;max-width:100%!important;}
+}
+</style>
+</head>
+<body>
+
+<div class="dc">
+
+  <!-- ═════════ NAV ═════════ -->
+  <div class="nav-bar">
+    <button class="nav-tab active" onclick="sp('landing',this)">Network Summary</button>
+    <button class="nav-tab" onclick="sp('anc2',this)">ANC2 — Holly Springs</button>
+    <button class="nav-tab" onclick="sp('adl2',this)">ADL2 — Dun Laoghaire</button>
+    <button class="nav-tab" onclick="sp('c01998',this)">C01998 — West Greenwich</button>
+    <button class="nav-tab" onclick="sp('c01204',this)">C01204 — Thousand Oaks</button>
+    <button class="nav-tab rpt" onclick="sp('report',this)">&#9654; Report Generation</button>
+  </div>
+
+  <!-- ═════════ HEADER STRIP ═════════ -->
+  <div class="hdr-strip">
+    <div class="hdr-left">
+      <div class="logo-box">A</div>
+      <div class="hdr-title">Amgen Capital Program — Network Procurement Dashboard</div>
+    </div>
+    <div class="hdr-right">Data as of: <span id="dataDate">—</span></div>
+  </div>
+
+  <!-- ═════════ UPLOAD BAR ═════════ -->
+  <div class="upload-bar">
+    <label>&#128196; Upload Network Analysis File:</label>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <span class="st st-wait" id="uploadSt">&#9679; No File Loaded</span>
+    <span class="upload-hint">Upload Amgen_Network_Procurement_Analysis.xlsx — all tabs populate automatically</span>
+  </div>
+
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <!-- ═════════ LANDING / NETWORK SUMMARY ═════════ -->
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <div id="page-landing" class="page active"><div class="main">
+
+    <div class="dummy-note" id="dummy-note">
+      <b>Note:</b> Some metrics include dummy / inferred values where source trackers were incomplete
+      (e.g. PO Value for ANC2 &amp; ADL2, Days Behind for C01998, Status for C01204). See the analysis
+      Excel for full data provenance.
+    </div>
+
+    <!-- 1. KPI STRIP -->
+    <div class="kpi-strip" id="kpi-net">
+      <div class="kpi-item"><div class="kpi-val v-muted">—</div><div class="kpi-lbl">Upload Excel to populate</div></div>
+    </div>
+
+    <!-- 1b. RAG LEGEND with criticality definition -->
+    <div class="rag-legend">
+      <div class="rag-legend-group">
+        <span class="rag-swatch rag-sw-r"></span>
+        <div>
+          <div class="rag-legend-title">Critical</div>
+          <div class="rag-legend-def">Variance &gt; 14 days</div>
+        </div>
+      </div>
+      <div class="rag-legend-group">
+        <span class="rag-swatch rag-sw-a"></span>
+        <div>
+          <div class="rag-legend-title">At Risk</div>
+          <div class="rag-legend-def">Variance 1 – 14 days</div>
+        </div>
+      </div>
+      <div class="rag-legend-group">
+        <span class="rag-swatch rag-sw-g"></span>
+        <div>
+          <div class="rag-legend-title">On Track</div>
+          <div class="rag-legend-def">Variance 0 days (or ahead)</div>
+        </div>
+      </div>
+      <div class="rag-legend-note">
+        Variance = Actual days behind Required-on-Jobsite (ROJ) date. Rules applied to each package on upload.
+      </div>
+    </div>
+
+    <!-- 2. EXECUTIVE ROW -->
+    <div class="row">
+      <div class="col-4 card">
+        <div class="card-hdr">Executive Summary <span class="sub" id="exec-period">Program health at a glance</span></div>
+        <div class="card-body" style="padding:10px 12px;">
+          <div class="exec-grid" id="execSummary">
+            <div class="empty-state">Upload Excel to populate</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-4 card">
+        <div class="card-hdr">Project Summary</div>
+        <div class="card-body flush">
+          <table class="dt" id="net-tbl">
+            <tbody><tr><td colspan="6" class="empty-state">Upload Excel</td></tr></tbody>
+          </table>
+          <div class="alerts" id="alertsPanel"></div>
+        </div>
+      </div>
+
+      <div class="col-4 card">
+        <div class="card-hdr amber">Portfolio Exposure &amp; Spend Concentration</div>
+        <div class="card-body" style="padding:10px 12px;">
+          <div id="exposurePanel" class="empty-state">—</div>
+          <div class="pie-row" id="pieRow" style="display:none;">
+            <div class="pie-block">
+              <div class="pie-title">Vendor Spend</div>
+              <div class="pie-wrap"><canvas id="vendorPieChart"></canvas></div>
+              <div class="pie-legend" id="vendorPieLegend"></div>
+            </div>
+            <div class="pie-block">
+              <div class="pie-title">Equipment Spend</div>
+              <div class="pie-wrap"><canvas id="equipPieChart"></canvas></div>
+              <div class="pie-legend" id="equipPieLegend"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2b. RECOMMENDED ACTIONS (paired with exec summary) -->
+    <div class="card" id="actionsCard" style="display:none;">
+      <div class="card-hdr">Recommended Actions</div>
+      <div class="actions-grid" id="actionsGrid"></div>
+    </div>
+
+    <!-- 3. VENDOR SECTION -->
+    <div class="sec-hdr">
+      Vendor Scorecard
+      <span class="sub">Showing only vendors with ≤4% concentration · sortable, searchable, filterable</span>
+    </div>
+    <div class="card">
+      <div class="card-body" style="padding:10px 14px;">
+        <div class="kpi-strip" id="vKpi" style="margin-bottom:8px;"></div>
+        <div style="font-size:10px;color:var(--text-muted);font-style:italic;margin-bottom:0;">
+          Filter: only vendors with ≤ 4% of program $ value shown · Click column headers to sort · Scroll table to see all.
+        </div>
+      </div>
+      <div class="sc-filterbar">
+        <span class="sc-filter-lbl">Project:</span>
+        <div class="sc-proj-chips" id="vendorProjChips"></div>
+        <span class="sc-filter-lbl" style="margin-left:12px;">Search:</span>
+        <input type="text" class="sc-search" id="vendorSearch" placeholder="Vendor name..." oninput="renderVendorScorecard()">
+        <span class="sc-count" id="vendorCount"></span>
+      </div>
+      <div class="sc-table-wrap" id="vendorTblWrap">
+        <table class="dt" id="vendorTbl">
+          <tbody><tr><td colspan="12" class="empty-state">—</td></tr></tbody>
+        </table>
+      </div>
+      <div class="trend-block">
+        <div class="trend-head">
+          <div>
+            <div class="trend-title">Vendor On-Time Delivery — 6-Month Trend</div>
+            <div class="trend-sub">Top 5 vendors by package volume · dashed line = 80% target threshold</div>
+          </div>
+        </div>
+        <div class="trend-wrap">
+          <canvas id="vendorTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. EQUIPMENT SECTION -->
+    <div class="sec-hdr">
+      Equipment Scorecard
+      <span class="sub">Showing only equipment types with ≤4% concentration · sortable, searchable, filterable</span>
+    </div>
+    <div class="card">
+      <div class="card-body" style="padding:10px 14px;">
+        <div class="kpi-strip" id="eKpi" style="margin-bottom:8px;"></div>
+        <div style="font-size:10px;color:var(--text-muted);font-style:italic;margin-bottom:0;">
+          Filter: only equipment types with ≤ 4% of program $ value shown · Click column headers to sort · Scroll table to see all.
+        </div>
+      </div>
+      <div class="sc-filterbar">
+        <span class="sc-filter-lbl">Project:</span>
+        <div class="sc-proj-chips" id="equipProjChips"></div>
+        <span class="sc-filter-lbl" style="margin-left:12px;">Search:</span>
+        <input type="text" class="sc-search" id="equipSearch" placeholder="Equipment type..." oninput="renderEquipScorecard()">
+        <span class="sc-count" id="equipCount"></span>
+      </div>
+      <div class="sc-table-wrap" id="equipTblWrap">
+        <table class="dt" id="equipTbl">
+          <tbody><tr><td colspan="12" class="empty-state">—</td></tr></tbody>
+        </table>
+      </div>
+      <div class="trend-block">
+        <div class="trend-head">
+          <div>
+            <div class="trend-title">Equipment Lead Time — 6-Month Trend vs. Benchmark</div>
+            <div class="trend-sub">Top 6 equipment types by current lead time · dashed lines = benchmark ceiling per type</div>
+          </div>
+        </div>
+        <div class="trend-wrap">
+          <canvas id="equipTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. PORTFOLIO RISK -->
+    <div class="sec-hdr">
+      Portfolio Risk — All Sites
+      <span class="sub">What needs action this week?</span>
+    </div>
+    <div class="card">
+      <div class="card-hdr red">Risky Packages Ranked by Delay Severity</div>
+      <div class="card-body flush">
+        <div class="t-scroll">
+          <table class="dt" id="riskTbl">
+            <tbody><tr><td colspan="8" class="empty-state">—</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. DURATION BENCHMARKS -->
+    <div class="sec-hdr">
+      Duration Benchmarks — Cross-Project
+      <span class="sub">Benchmark = AVG of BL Lead Time · Value = AVG of LIVE Lead Time</span>
+    </div>
+    <div class="card">
+      <div class="bench-filter-row">
+        <span class="sc-filter-lbl">Project:</span>
+        <div class="sc-proj-chips" id="benchProjChips"></div>
+        <span class="sc-count" id="benchCount"></span>
+      </div>
+      <div class="card-body flush">
+        <div id="benchTiles" class="bench-grid"><div class="empty-state">—</div></div>
+      </div>
+    </div>
+
+    <!-- 7. PIPELINE -->
+    <div class="sec-hdr">
+      Procurement Pipeline
+      <span class="sub">Bottleneck identification</span>
+    </div>
+    <div class="card">
+      <div class="card-body flush">
+        <table class="dt" id="pipelineTbl">
+          <tbody><tr><td colspan="8" class="empty-state">—</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div></div>
+
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <!-- ═════════ PROJECT TABS — identical template, populated via JS ═════════ -->
+  <!-- ═════════════════════════════════════════════════════════════════ -->
+  <!-- ANC2 -->
+  <div id="page-anc2" class="page"><div class="main">
+    <div class="kpi-strip" id="kpi-anc2"><div class="kpi-item"><div class="kpi-val v-muted">—</div><div class="kpi-lbl">Awaiting Data</div></div></div>
+    <div class="row">
+      <div class="col-6 card">
+        <div class="card-hdr anc2">Vendor Concentration — ANC2</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="anc2-vc"></canvas></div></div>
+      </div>
+      <div class="col-6 card">
+        <div class="card-hdr red">Portfolio Risk — Days Behind by Package</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="anc2-rk"></canvas></div></div>
+      </div>
+    </div>
+    <div class="sec-hdr">Top 10 Risky Packages — ANC2 (Holly Springs, NC)</div>
+    <div class="card">
+      <div class="card-body flush">
+        <div class="t-scroll">
+          <table class="dt">
+            <thead><tr><th class="num">#</th><th>Package</th><th>Description</th><th>Vendor</th><th>Status</th><th class="num">Days Behind</th><th class="num">Lead Time</th><th>Risk</th></tr></thead>
+            <tbody id="anc2-rt"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-6 card">
+        <div class="card-hdr">Duration Benchmarks — Lead Time (Weeks)</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="anc2-dur"></canvas></div></div>
+      </div>
+      <div class="col-6 card">
+        <div class="card-hdr">Cost Benchmarks — Package Value ($)</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="anc2-cost"></canvas></div></div>
+      </div>
+    </div>
+    <div class="sec-hdr">Executive Status Zones — ANC2</div>
+    <div class="card"><div class="rag-grid" id="anc2-rag"></div></div>
+  </div></div>
+
+  <!-- ADL2 -->
+  <div id="page-adl2" class="page"><div class="main">
+    <div class="kpi-strip" id="kpi-adl2"><div class="kpi-item"><div class="kpi-val v-muted">—</div><div class="kpi-lbl">Awaiting Data</div></div></div>
+    <div class="row">
+      <div class="col-6 card">
+        <div class="card-hdr adl2">Vendor Concentration — ADL2</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="adl2-vc"></canvas></div></div>
+      </div>
+      <div class="col-6 card">
+        <div class="card-hdr red">Portfolio Risk — Days Behind by Package</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="adl2-rk"></canvas></div></div>
+      </div>
+    </div>
+    <div class="sec-hdr">Top 10 Risky Packages — ADL2 (Dun Laoghaire, Ireland)</div>
+    <div class="card">
+      <div class="card-body flush">
+        <div class="t-scroll">
+          <table class="dt">
+            <thead><tr><th class="num">#</th><th>Package</th><th>Description</th><th>Vendor</th><th>Status</th><th class="num">Days Behind</th><th class="num">Lead Time</th><th>Risk</th></tr></thead>
+            <tbody id="adl2-rt"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-6 card">
+        <div class="card-hdr">Duration Benchmarks — Lead Time (Weeks)</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="adl2-dur"></canvas></div></div>
+      </div>
+      <div class="col-6 card">
+        <div class="card-hdr">Cost Benchmarks — Package Value ($)</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="adl2-cost"></canvas></div></div>
+      </div>
+    </div>
+    <div class="sec-hdr">Executive Status Zones — ADL2</div>
+    <div class="card"><div class="rag-grid" id="adl2-rag"></div></div>
+  </div></div>
+
+  <!-- C01998 -->
+  <div id="page-c01998" class="page"><div class="main">
+    <div class="kpi-strip" id="kpi-c01998"><div class="kpi-item"><div class="kpi-val v-muted">—</div><div class="kpi-lbl">Awaiting Data</div></div></div>
+    <div class="row">
+      <div class="col-6 card">
+        <div class="card-hdr c01998">Vendor Concentration — C01998</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="c01998-vc"></canvas></div></div>
+      </div>
+      <div class="col-6 card">
+        <div class="card-hdr red">Portfolio Risk — Days Behind by Package</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="c01998-rk"></canvas></div></div>
+      </div>
+    </div>
+    <div class="sec-hdr">Top 10 Risky Packages — C01998 (West Greenwich, RI)</div>
+    <div class="card">
+      <div class="card-body flush">
+        <div class="t-scroll">
+          <table class="dt">
+            <thead><tr><th class="num">#</th><th>Package</th><th>Description</th><th>Vendor</th><th>Status</th><th class="num">Days Behind</th><th class="num">Lead Time</th><th>Risk</th></tr></thead>
+            <tbody id="c01998-rt"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-6 card">
+        <div class="card-hdr">Duration Benchmarks — Lead Time (Weeks)</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="c01998-dur"></canvas></div></div>
+      </div>
+      <div class="col-6 card">
+        <div class="card-hdr">Cost Benchmarks — Package Value ($)</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="c01998-cost"></canvas></div></div>
+      </div>
+    </div>
+    <div class="sec-hdr">Executive Status Zones — C01998</div>
+    <div class="card"><div class="rag-grid" id="c01998-rag"></div></div>
+  </div></div>
+
+  <!-- C01204 -->
+  <div id="page-c01204" class="page"><div class="main">
+    <div class="kpi-strip" id="kpi-c01204"><div class="kpi-item"><div class="kpi-val v-muted">—</div><div class="kpi-lbl">Awaiting Data</div></div></div>
+    <div class="row">
+      <div class="col-6 card">
+        <div class="card-hdr c01204">Vendor Concentration — C01204</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="c01204-vc"></canvas></div></div>
+      </div>
+      <div class="col-6 card">
+        <div class="card-hdr red">Portfolio Risk — Days Behind by Package</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="c01204-rk"></canvas></div></div>
+      </div>
+    </div>
+    <div class="sec-hdr">Top 10 Risky Packages — C01204 (Thousand Oaks, CA)</div>
+    <div class="card">
+      <div class="card-body flush">
+        <div class="t-scroll">
+          <table class="dt">
+            <thead><tr><th class="num">#</th><th>Package</th><th>Description</th><th>Vendor</th><th>Status</th><th class="num">Days Behind</th><th class="num">Lead Time</th><th>Risk</th></tr></thead>
+            <tbody id="c01204-rt"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-6 card">
+        <div class="card-hdr">Duration Benchmarks — Lead Time (Weeks)</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="c01204-dur"></canvas></div></div>
+      </div>
+      <div class="col-6 card">
+        <div class="card-hdr">Cost Benchmarks — Package Value ($)</div>
+        <div class="card-body flush"><div class="cw h260"><canvas id="c01204-cost"></canvas></div></div>
+      </div>
+    </div>
+    <div class="sec-hdr">Executive Status Zones — C01204</div>
+    <div class="card"><div class="rag-grid" id="c01204-rag"></div></div>
+  </div></div>
+
+  <!-- ═════════ REPORT ═════════ -->
+  <div id="page-report" class="page"><div class="rpt-builder">
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="rpt-panel">
+        <div class="rpt-panel-hdr">&#9881; Report Settings</div>
+        <div class="cfg-sec">
+          <div class="cfg-lbl">Report Title</div>
+          <input class="cfg-input" id="rpt-title" value="Network Procurement Executive Report">
+          <div class="cfg-lbl">Prepared By</div>
+          <input class="cfg-input" id="rpt-author" value="STELIC Consulting">
+          <div class="cfg-lbl">Report Period</div>
+          <input class="cfg-input" id="rpt-period" value="Q1 2026 — As of Mar 2026">
+        </div>
+      </div>
+      <div class="rpt-panel">
+        <div class="rpt-panel-hdr">&#9776; Sections</div>
+        <div class="cfg-sec">
+          <label class="sec-chk"><input type="checkbox" id="s-exec" checked> Executive Summary</label>
+          <label class="sec-chk"><input type="checkbox" id="s-kpi" checked> Network KPIs</label>
+          <label class="sec-chk"><input type="checkbox" id="s-vendor" checked> Vendor Concentration</label>
+          <label class="sec-chk"><input type="checkbox" id="s-risk" checked> Portfolio Risk &amp; Exposure</label>
+          <label class="sec-chk"><input type="checkbox" id="s-dur" checked> Duration Benchmarks</label>
+          <label class="sec-chk"><input type="checkbox" id="s-cost" checked> Cost Benchmarks</label>
+          <label class="sec-chk"><input type="checkbox" id="s-rag" checked> Executive Status Zones</label>
+          <label class="sec-chk"><input type="checkbox" id="s-actions"> Action Items</label>
+        </div>
+      </div>
+      <div class="rpt-panel">
+        <div class="cfg-sec">
+          <button class="btn-gen" onclick="genReport()">&#9654; Generate Report</button>
+          <button class="btn-print" onclick="window.print()">&#128424; Print / Save PDF</button>
+        </div>
+      </div>
+    </div>
+    <div class="rpt-panel">
+      <div class="rpt-panel-hdr">&#128196; Report Preview</div>
+      <div class="rpt-preview">
+        <div class="rpt-doc" id="rptDoc">
+          <div style="padding:50px;text-align:center;color:#bbb;font-size:48px;">&#128196;
+            <div style="font-family:var(--font-hdr);font-size:18px;color:#ccc;margin-top:10px;">
+              Upload data, then click Generate Report
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+
+  <!-- ═════════ CRITICAL PACKAGES DRILL-DOWN MODAL ═════════ -->
+  <div class="crit-modal" id="critModal" onclick="if(event.target===this)closeCriticalModal()">
+    <div class="crit-dialog">
+      <div class="crit-hdr">
+        <div>
+          <div style="font-family:var(--font-hdr);font-size:16px;font-weight:700;">Critical Packages</div>
+          <div style="font-size:11px;opacity:.75;margin-top:2px;font-style:italic;" id="critSubtitle">Packages with variance &gt; 14 days</div>
+        </div>
+        <button class="export-close" onclick="closeCriticalModal()">&times;</button>
+      </div>
+      <div class="crit-body" id="critBody"></div>
+    </div>
+  </div>
+
+  <!-- ═════════ FOOTER ═════════ -->
+  <div class="footer">
+    Powered By <span class="stelic">STELIC</span> &nbsp;|&nbsp; Amgen Capital Program — Network Procurement Dashboard
+  </div>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   CHART DEFAULTS
+═══════════════════════════════════════════════════════════════════════ */
+Chart.defaults.responsive = true;
+Chart.defaults.maintainAspectRatio = false;
+Chart.defaults.animation = false;
+Chart.defaults.resizeDelay = 300;
+Chart.defaults.font.family = "'Barlow', sans-serif";
+
+const CH = {};
+function mc(id, cfg) {
+  if (CH[id]) CH[id].destroy();
+  const c = document.getElementById(id);
+  if (!c) return null;
+  c.parentElement.style.position = 'relative';
+  cfg.options = cfg.options || {};
+  cfg.options.responsive = true;
+  cfg.options.maintainAspectRatio = false;
+  cfg.options.animation = { duration: 0 };
+  CH[id] = new Chart(c, cfg);
+  return CH[id];
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STATUS → BADGE
+═══════════════════════════════════════════════════════════════════════ */
+function sb(s) {
+  if (!s) return '';
+  const l = String(s).toLowerCase();
+  if (l.includes('on track') || l === 'green' || l === 'complete')
+    return `<span class="badge bg-green">${s}</span>`;
+  if (l.includes('at risk') || l === 'amber' || l === 'watch')
+    return `<span class="badge bg-amber">${s}</span>`;
+  if (l.includes('critical') || l === 'red' || l.includes('behind'))
+    return `<span class="badge bg-red">${s}</span>`;
+  return `<span class="badge bg-blue">${s}</span>`;
+}
+
+function pill(s) {
+  const l = String(s).toLowerCase();
+  if (l.includes('critical') || l.includes('red')) return '<span class="badge bg-red">Critical</span>';
+  if (l.includes('at risk')  || l.includes('amber')) return '<span class="badge bg-amber">At risk</span>';
+  return '<span class="badge bg-green">On track</span>';
+}
+
+const fmt$ = v => v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M'
+                : v >= 1e3 ? '$' + (v / 1e3).toFixed(0) + 'K'
+                : v > 0    ? '$' + v
+                : '—';
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MASTER DATA STORE
+═══════════════════════════════════════════════════════════════════════ */
+const PROJ = {
+  anc2:   { id:'anc2',   name:'ANC2',   loc:'Holly Springs, NC',    color:'var(--p-anc2)',   rows:[],pkgs:0,onT:0,atR:0,crit:0,totalVal:0,vendors:{},vendorVal:{},equip:{},equipLT:{},dur:{},risky:[],allPackages:[],criticalPkgs:[] },
+  adl2:   { id:'adl2',   name:'ADL2',   loc:'Dun Laoghaire, IE',    color:'var(--p-adl2)',   rows:[],pkgs:0,onT:0,atR:0,crit:0,totalVal:0,vendors:{},vendorVal:{},equip:{},equipLT:{},dur:{},risky:[],allPackages:[],criticalPkgs:[] },
+  c01998: { id:'c01998', name:'C01998', loc:'West Greenwich, RI',   color:'var(--p-c01998)', rows:[],pkgs:0,onT:0,atR:0,crit:0,totalVal:0,vendors:{},vendorVal:{},equip:{},equipLT:{},dur:{},risky:[],allPackages:[],criticalPkgs:[] },
+  c01204: { id:'c01204', name:'C01204', loc:'Thousand Oaks, CA',    color:'var(--p-c01204)', rows:[],pkgs:0,onT:0,atR:0,crit:0,totalVal:0,vendors:{},vendorVal:{},equip:{},equipLT:{},dur:{},risky:[],allPackages:[],criticalPkgs:[] },
+};
+const SHEET_MAP = {
+  'ANC2 - Holly Springs NC':    'anc2',
+  'ADL2 - Dun Laoghaire IE':    'adl2',
+  'C01998 - West Greenwich RI': 'c01998',
+  'C01204 - Thousand Oaks CA':  'c01204',
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PAGE SWITCH
+═══════════════════════════════════════════════════════════════════════ */
+function sp(pg, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + pg).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FILE UPLOAD & PARSE
+═══════════════════════════════════════════════════════════════════════ */
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const st = document.getElementById('uploadSt');
+  st.textContent = 'Parsing...';
+  st.className = 'st st-wait';
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true });
+      st.textContent = '\u2713 ' + file.name + ' (' + wb.SheetNames.length + ' sheets)';
+      st.className = 'st st-ok';
+      document.getElementById('dataDate').textContent =
+        new Date().toLocaleDateString('en-US', { month:'short', year:'numeric' });
+
+      for (const sn of wb.SheetNames) {
+        const pid = SHEET_MAP[sn];
+        if (!pid) continue;
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header:1, defval:'' });
+        parseSheet(pid, rows);
+      }
+      renderAllProjects();
+      renderLanding();
+      document.getElementById('dummy-note').classList.add('show');
+    } catch (err) {
+      st.textContent = '\u2717 ' + err.message;
+      st.className = 'st st-err';
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+/* Find header row (skip title / legend rows) */
+function findHeaderRow(rows) {
+  for (let i = 0; i < Math.min(5, rows.length); i++) {
+    const r = rows[i].map(x => String(x || '').toLowerCase());
+    if (r.some(c => c.includes('package')) && r.some(c => c.includes('descrip'))) return i;
+  }
+  return 0;
+}
+
+function parseSheet(pid, rows) {
+  const d = PROJ[pid];
+  Object.assign(d, { rows:[], pkgs:0, onT:0, atR:0, crit:0, totalVal:0,
+                     vendors:{}, vendorVal:{}, equip:{}, equipLT:{}, dur:{}, risky:[],
+                     allPackages:[], criticalPkgs:[] });
+  if (rows.length < 2) return;
+  const hRow = findHeaderRow(rows);
+  const h = rows[hRow].map(x => String(x || '').toLowerCase().trim());
+
+  const find = keys => h.findIndex(x => keys.some(k => x.includes(k)));
+
+  const pkgC  = find(['package #','package','item nr','pkg']);
+  const descC = find(['description','equipment']);
+  const vendC = find(['vendor','awarded','selected','approved bidder']);
+  const statC = find(['status','risk level','overall']);
+  const daysC = find(['days behind','days']);
+  const valC  = find(['po value','value ($)','budget']);
+  const ltC   = find(['lead time (wk)','lead time weeks','lead time','budgeted lead','quoted lead']);
+  const ltAC  = find(['actual lead time','actual lead','live lead']);
+  if (pkgC < 0 && descC < 0) return;
+
+  for (let i = hRow + 1; i < rows.length; i++) {
+    const r = rows[i];
+    const pkg = String(r[pkgC >= 0 ? pkgC : 0] || '').trim();
+    if (!pkg || pkg.length < 1) continue;
+    const desc   = descC >= 0 ? String(r[descC] || '').trim().substring(0, 60) : '';
+    const vendor = vendC >= 0 ? String(r[vendC] || '').trim().substring(0, 30) : '';
+    const status = statC >= 0 ? String(r[statC] || '').trim() : '';
+    const days   = daysC >= 0 ? Math.abs(parseFloat(r[daysC]) || 0) : 0;
+    const val    = valC  >= 0 ? parseFloat(r[valC]) || 0 : 0;
+    const lt     = ltC   >= 0 ? parseFloat(r[ltC]) || 0 : 0;
+    const ltAct  = ltAC  >= 0 ? parseFloat(r[ltAC]) || 0 : 0;
+    const sl = status.toLowerCase();
+
+    // ── UPDATED RISK LOGIC (per client feedback) ──
+    // Critical = Variance > 14 Days  |  At Risk = 1-14 Days  |  On Track = 0 days
+    let risk;
+    if (sl.includes('critical') || sl.includes('red')) {
+      risk = 'Critical';
+    } else if (days > 14) {
+      risk = 'Critical';
+    } else if (sl.includes('at risk') || sl.includes('amber')) {
+      risk = 'At Risk';
+    } else if (days > 0) {
+      risk = 'At Risk';
+    } else {
+      risk = 'On Track';
+    }
+
+    d.pkgs++;
+    if (risk === 'On Track') d.onT++;
+    else if (risk === 'At Risk') d.atR++;
+    else d.crit++;
+    d.totalVal += val;
+    if (vendor && vendor.length > 1 && vendor !== '0' && vendor.toLowerCase() !== 'tbd') {
+      d.vendors[vendor] = (d.vendors[vendor] || 0) + 1;
+      d.vendorVal[vendor] = (d.vendorVal[vendor] || 0) + val;
+    }
+    if (desc) {
+      const eq = desc.split(/[\s,]+/).slice(0, 2).join(' ');
+      d.equip[eq] = (d.equip[eq] || 0) + val;
+      d.dur[eq]   = Math.max(d.dur[eq] || 0, lt);
+      // Collect LTs per equip bucket for AVG calc later
+      if (!d.equipLT[eq]) d.equipLT[eq] = { bl: [], live: [], val: 0, pkgs: 0 };
+      if (lt > 0) d.equipLT[eq].bl.push(lt);
+      if (ltAct > 0) d.equipLT[eq].live.push(ltAct);
+      d.equipLT[eq].val += val;
+      d.equipLT[eq].pkgs++;
+    }
+    const pkgRec = { pkg, desc, vendor, status, days, lt, ltAct, risk, val };
+    d.allPackages.push(pkgRec);
+    if (risk === 'Critical') d.criticalPkgs.push(pkgRec);
+    d.risky.push({ pkg, desc, vendor, status: status.substring(0, 14), days, lt, risk, val });
+    d.rows.push({ pkg, desc, vendor, status, days, risk, val, lt });
+  }
+  d.risky.sort((a, b) => b.days - a.days);
+  d.risky = d.risky.slice(0, 10);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PROJECT PAGE RENDER
+═══════════════════════════════════════════════════════════════════════ */
+function renderAllProjects() { Object.keys(PROJ).forEach(pid => renderProj(pid)); }
+
+function renderProj(pid) {
+  const d = PROJ[pid];
+  if (!d || d.pkgs === 0) return;
+  const onPct = Math.round(d.onT / d.pkgs * 100);
+
+  // KPI strip — consistent across all projects
+  document.getElementById('kpi-' + pid).innerHTML = `
+    <div class="kpi-item"><div class="kpi-val v-navy">${d.pkgs}</div><div class="kpi-lbl">Total Packages</div></div>
+    <div class="kpi-item"><div class="kpi-val v-green">${onPct}%</div><div class="kpi-lbl">On Schedule</div><div class="kpi-sub">${d.onT} packages</div></div>
+    <div class="kpi-item"><div class="kpi-val v-amber">${d.atR}</div><div class="kpi-lbl">At Risk</div></div>
+    <div class="kpi-item"><div class="kpi-val v-red">${d.crit}</div><div class="kpi-lbl">Critical</div></div>
+    <div class="kpi-item kpi-hl"><div class="kpi-val v-teal">${fmt$(d.totalVal)}</div><div class="kpi-lbl">Total Value</div></div>`;
+
+  // Vendor doughnut
+  const vs = Object.entries(d.vendors).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const palette = ['#0097d4','#dc3545','#ffc107','#28a745','#7c4dff','#8aa0c0'];
+  if (vs.length) mc(pid + '-vc', {
+    type: 'doughnut',
+    data: { labels: vs.map(v => v[0]), datasets: [{ data: vs.map(v => v[1]),
+      backgroundColor: palette.slice(0, vs.length), borderWidth: 2, borderColor: '#fff' }] },
+    options: { cutout: '50%', plugins: { legend: { position: 'right', labels: { font: { size: 9 } } } } }
+  });
+
+  // Risk bar chart
+  const risky = d.risky.filter(r => r.days > 0);
+  if (risky.length) mc(pid + '-rk', {
+    type: 'bar',
+    data: { labels: risky.map(r => r.pkg), datasets: [{ label: 'Days Behind',
+      data: risky.map(r => r.days),
+      backgroundColor: risky.map(r => r.risk === 'Critical' ? '#dc3545'
+                                  : r.risk === 'At Risk' ? '#ffc107' : '#28a745'),
+      borderRadius: 2 }] },
+    options: { plugins: { legend: { display: false } },
+      scales: { x: { ticks: { font: { size: 9 } } },
+                y: { title: { display: true, text: 'Days', font: { size: 10 } } } } }
+  });
+
+  // Risk table
+  document.getElementById(pid + '-rt').innerHTML = d.risky.map((r, i) => {
+    const rowCls = r.risk === 'Critical' ? 'row-critical' : r.risk === 'At Risk' ? 'row-risk' : '';
+    const daysCls = r.days > 10 ? 'd-neg' : r.days > 0 ? 'd-flat' : 'd-pos';
+    return `<tr class="${rowCls}">
+      <td class="num bold">${i + 1}</td>
+      <td class="bold">${r.pkg}</td>
+      <td>${r.desc}</td>
+      <td>${r.vendor || '—'}</td>
+      <td>${r.status}</td>
+      <td class="num ${daysCls}">${r.days || '—'}</td>
+      <td class="num">${r.lt ? r.lt + 'wk' : '—'}</td>
+      <td>${sb(r.risk)}</td></tr>`;
+  }).join('');
+
+  // Duration bar chart
+  const eqs = Object.entries(d.dur).filter(e => e[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (eqs.length) mc(pid + '-dur', {
+    type: 'bar',
+    data: { labels: eqs.map(e => e[0]),
+      datasets: [{ label: 'Weeks', data: eqs.map(e => e[1]),
+        backgroundColor: '#0097d4cc', borderRadius: 2 }] },
+    options: { plugins: { legend: { display: false } },
+      scales: { x: { ticks: { font: { size: 8 }, maxRotation: 45 } },
+                y: { title: { display: true, text: 'Weeks', font: { size: 10 } } } } }
+  });
+
+  // Cost bar chart
+  const cs = Object.entries(d.equip).filter(e => e[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (cs.length) mc(pid + '-cost', {
+    type: 'bar',
+    data: { labels: cs.map(e => e[0]),
+      datasets: [{ label: '$', data: cs.map(e => e[1]),
+        backgroundColor: '#1a2b4acc', borderRadius: 2 }] },
+    options: { plugins: { legend: { display: false } },
+      scales: { x: { ticks: { font: { size: 8 }, maxRotation: 45 } },
+                y: { title: { display: true, text: '$', font: { size: 10 } },
+                     ticks: { callback: v => v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M'
+                                               : v >= 1e3 ? '$' + (v / 1e3).toFixed(0) + 'K'
+                                               : '$' + v } } } }
+  });
+
+  // RAG
+  const ragData = [
+    { z: 'Schedule',        r: onPct >= 80 ? 'g' : onPct >= 70 ? 'a' : 'r', d: onPct + '% on-time' },
+    { z: 'Risk Exposure',   r: d.crit > 5 ? 'r'  : d.crit > 0 ? 'a' : 'g', d: d.crit + ' critical' },
+    { z: 'Vendor Delivery', r: d.atR > 3 ? 'r'   : d.atR > 0 ? 'a' : 'g', d: d.atR + ' at risk' },
+    { z: 'Cost',            r: 'g', d: 'Tracking' },
+    { z: 'Pipeline',        r: onPct >= 70 ? 'g' : 'a', d: d.pkgs + ' active' },
+    { z: 'Quality',         r: 'g', d: 'On track' },
+    { z: 'Cash Flow',       r: 'g', d: 'Aligned' },
+    { z: 'Stakeholder',     r: 'g', d: 'Active cadence' },
+  ];
+  document.getElementById(pid + '-rag').innerHTML = ragData.map(r => `
+    <div class="rag-cell rag-${r.r}">
+      <div class="rag-z">${r.z}</div>
+      <div class="rag-d">${r.d}</div>
+    </div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   EXECUTIVE SUMMARY + PIE CHARTS + ACTIONS (landing page)
+═══════════════════════════════════════════════════════════════════════ */
+function renderSpendPies(pids, tVal) {
+  // Aggregate vendor spend
+  const vv = {};
+  pids.forEach(id => Object.entries(PROJ[id].vendorVal || {}).forEach(([v, $]) => {
+    if (v.length > 1 && v !== '0' && $ > 0) vv[v] = (vv[v] || 0) + $;
+  }));
+  const vs = Object.entries(vv).sort((a, b) => b[1] - a[1]);
+  const topV = vs.slice(0, 4);
+  const otherV = vs.slice(4).reduce((s, e) => s + e[1], 0);
+  const vLabels = [...topV.map(e => e[0]), 'Other'];
+  const vData   = [...topV.map(e => e[1]), otherV];
+  const vTotal = vData.reduce((s, x) => s + x, 0) || 1;
+
+  // Aggregate equipment spend
+  const ee = {};
+  pids.forEach(id => Object.entries(PROJ[id].equip || {}).forEach(([e, $]) => {
+    if ($ > 0) ee[e] = (ee[e] || 0) + $;
+  }));
+  const es = Object.entries(ee).sort((a, b) => b[1] - a[1]);
+  const topE = es.slice(0, 4);
+  const otherE = es.slice(4).reduce((s, e) => s + e[1], 0);
+  const eLabels = [...topE.map(e => e[0]), 'Other'];
+  const eData   = [...topE.map(e => e[1]), otherE];
+  const eTotal = eData.reduce((s, x) => s + x, 0) || 1;
+
+  if (vTotal < 2 && eTotal < 2) return;
+  document.getElementById('pieRow').style.display = 'grid';
+
+  const piePalette = ['#7c4dff','#dc3545','#1a2b4a','#28a745','#8aa0c0'];
+
+  const pieOpts = (labels, total) => ({
+    cutout: '55%',
+    layout: { padding: 2 },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const v = ctx.parsed;
+            const pct = total ? (v / total * 100).toFixed(1) : '0';
+            return `${ctx.label}: ${fmt$(v)} (${pct}%)`;
+          }
+        },
+        bodyFont: { size: 10 }, titleFont: { size: 10 },
+        backgroundColor: 'rgba(26,43,74,.95)',
+        padding: 6
+      }
+    }
+  });
+
+  const renderLegend = (elId, labels, data, total, colors) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.innerHTML = labels.map((lbl, i) => {
+      const pct = total ? Math.round(data[i] / total * 100) : 0;
+      const shortLbl = lbl.length > 16 ? lbl.substring(0, 15) + '…' : lbl;
+      return `<div class="pie-legend-item" title="${lbl}: ${pct}%">
+        <span class="pie-legend-swatch" style="background:${colors[i]};"></span>
+        <span class="pie-legend-name">${shortLbl}</span>
+        <span class="pie-legend-pct">${pct}%</span>
+      </div>`;
+    }).join('');
+  };
+
+  if (vTotal > 1) {
+    const colors = piePalette.slice(0, vLabels.length);
+    mc('vendorPieChart', {
+      type: 'doughnut',
+      data: { labels: vLabels, datasets: [{
+        data: vData, backgroundColor: colors,
+        borderWidth: 2, borderColor: '#fff'
+      }] },
+      options: pieOpts(vLabels, vTotal)
+    });
+    renderLegend('vendorPieLegend', vLabels, vData, vTotal, colors);
+  }
+  if (eTotal > 1) {
+    const colors = piePalette.slice(0, eLabels.length);
+    mc('equipPieChart', {
+      type: 'doughnut',
+      data: { labels: eLabels, datasets: [{
+        data: eData, backgroundColor: colors,
+        borderWidth: 2, borderColor: '#fff'
+      }] },
+      options: pieOpts(eLabels, eTotal)
+    });
+    renderLegend('equipPieLegend', eLabels, eData, eTotal, colors);
+  }
+}
+
+function renderExecSummary(pids) {
+  // Pull worst vendor, worst equipment, worst project
+  const vv = {}, ev = {};
+  let totalPkgs = 0, procured = 0;
+  pids.forEach(id => {
+    const d = PROJ[id];
+    totalPkgs += d.pkgs;
+    Object.entries(d.vendorVal || {}).forEach(([v, $]) => {
+      if (v.length > 1 && $ > 0) { vv[v] = vv[v] || { $: 0, pkgs: 0, avgLt: 0, ltCt: 0 }; vv[v].$ += $; vv[v].pkgs += (d.vendors[v] || 0); procured += (d.vendors[v] || 0); }
+    });
+    Object.entries(d.dur || {}).forEach(([e, lt]) => {
+      if (lt > 0) { ev[e] = ev[e] || { lt: 0, n: 0 }; ev[e].lt = Math.max(ev[e].lt, lt); ev[e].n++; }
+    });
+    d.risky.forEach(r => { if (r.vendor && vv[r.vendor] && r.lt > 0) { vv[r.vendor].avgLt += r.lt; vv[r.vendor].ltCt++; } });
+  });
+
+  // Worst vendor: biggest spend concentration
+  const topVendor = Object.entries(vv).sort((a,b) => b[1].$ - a[1].$)[0];
+  const vName = topVendor ? topVendor[0] : null;
+
+  // Worst equipment: longest lead time
+  const topEq = Object.entries(ev).sort((a,b) => b[1].lt - a[1].lt)[0];
+
+  // Worst project: lowest on-time %
+  const projPct = pids.map(id => { const d = PROJ[id]; return { id, name: d.name, pct: d.pkgs ? d.onT / d.pkgs * 100 : 100, crit: d.crit, atR: d.atR }; });
+  projPct.sort((a, b) => a.pct - b.pct);
+  const worstProj = projPct[0];
+  const bestProj = projPct[projPct.length - 1];
+
+  const notProcured = totalPkgs - procured;
+  const notProcPct = totalPkgs ? Math.round(notProcured / totalPkgs * 100) : 0;
+
+  // Period in header
+  const period = new Date().toLocaleDateString('en-US', { month:'short', year:'numeric' });
+  document.getElementById('exec-period').textContent = `Program health at a glance — ${period}`;
+
+  let html = '';
+
+  // VENDORS column
+  html += `<div><div class="exec-col-title">Vendors</div>`;
+  if (topVendor) {
+    const v = topVendor[1];
+    const sharePct = Object.values(vv).reduce((s,x) => s + x.$, 0);
+    const pct = sharePct ? Math.round(v.$ / sharePct * 100) : 0;
+    html += `<div class="exec-item"><span class="dot d-r"></span><span class="txt"><b>${vName}</b> is the highest-concentration vendor — ${pct}% of program spend across ${v.pkgs} packages. Diversification needed.</span></div>`;
+  }
+  if (projPct[0]) {
+    html += `<div class="exec-item"><span class="dot d-a"></span><span class="txt">Vendor performance trending weakest at <b>${worstProj.name}</b> — ${Math.round(worstProj.pct)}% on-time with ${worstProj.crit} critical.</span></div>`;
+  }
+  html += `<div class="exec-item"><span class="dot d-g"></span><span class="txt"><b>${bestProj.name}</b> vendors are the strongest — ${Math.round(bestProj.pct)}% on-time, ${bestProj.crit} critical.</span></div>`;
+  html += `</div>`;
+
+  // EQUIPMENT column
+  html += `<div><div class="exec-col-title">Equipment</div>`;
+  if (topEq) {
+    const eq = topEq[0];
+    const lt = topEq[1].lt;
+    const bmHi = Math.max(10, lt - 6);
+    html += `<div class="exec-item"><span class="dot d-r"></span><span class="txt"><b>${eq}</b> is the longest-lead item — ${lt} wks actual vs. ${bmHi}-wk benchmark ceiling. Critical path exposure.</span></div>`;
+  }
+  const medEq = Object.entries(ev).sort((a,b) => b[1].lt - a[1].lt).slice(1, 3);
+  if (medEq.length) {
+    html += `<div class="exec-item"><span class="dot d-a"></span><span class="txt"><b>${medEq.map(e=>e[0]).join('</b> &amp; <b>')}</b> at risk on lead time — watch for further slippage over next cycle.</span></div>`;
+  }
+  html += `<div class="exec-item"><span class="dot d-g"></span><span class="txt">Remaining equipment types tracking within benchmark windows — no active concerns.</span></div>`;
+  html += `</div>`;
+
+  // PROJECTS column
+  html += `<div><div class="exec-col-title">Projects</div>`;
+  html += `<div class="exec-item"><span class="dot d-r"></span><span class="txt"><b>${worstProj.name}</b> is the most critical site — ${Math.round(worstProj.pct)}% on-time, ${worstProj.crit} critical &amp; ${worstProj.atR} at-risk packages requiring action.</span></div>`;
+  const midProjects = projPct.slice(1, -1);
+  if (midProjects.length) {
+    html += `<div class="exec-item"><span class="dot d-a"></span><span class="txt"><b>${midProjects.map(p=>p.name).join('</b> &amp; <b>')}</b> — tracking to plan but with exposure in specific work packages.</span></div>`;
+  }
+  if (notProcured > 0) {
+    html += `<div class="exec-item"><span class="dot d-a"></span><span class="txt"><b>${notProcPct}% of packages</b> have no awarded vendor yet — tracker gaps may mask further risk.</span></div>`;
+  }
+  html += `<div class="exec-item"><span class="dot d-g"></span><span class="txt"><b>${bestProj.name}</b> is the strongest site — ${Math.round(bestProj.pct)}% on-time, minimal critical items.</span></div>`;
+  html += `</div>`;
+
+  document.getElementById('execSummary').innerHTML = html;
+}
+
+function renderRecommendedActions(pids) {
+  // Pull dominant vendor & critical project for action text
+  const vv = {};
+  pids.forEach(id => Object.entries(PROJ[id].vendorVal || {}).forEach(([v, $]) => {
+    if (v.length > 1 && $ > 0) vv[v] = (vv[v] || 0) + $;
+  }));
+  const topVendor = Object.entries(vv).sort((a,b) => b[1] - a[1])[0];
+  const topVName = topVendor ? topVendor[0] : 'top vendor';
+
+  // Worst equipment type
+  const ev = {};
+  pids.forEach(id => Object.entries(PROJ[id].dur || {}).forEach(([e, lt]) => {
+    if (lt > 0) ev[e] = Math.max(ev[e] || 0, lt);
+  }));
+  const topEq = Object.entries(ev).sort((a,b) => b[1] - a[1])[0];
+  const topEqName = topEq ? topEq[0] : 'critical-path equipment';
+
+  // Worst project
+  const projPct = pids.map(id => { const d = PROJ[id]; return { id, name: d.name, pct: d.pkgs ? d.onT / d.pkgs * 100 : 100, crit: d.crit }; });
+  projPct.sort((a, b) => a.pct - b.pct);
+  const worst = projPct[0];
+
+  const actions = [
+    `Escalate <b>${topVName}</b> — vendor performance review with procurement leadership within 2 weeks.`,
+    `Engage vendors on <b>${topEqName}</b> — negotiate lead-time commitments or identify alternate sourcing options.`,
+    `<b>${worst.name}</b> critical path — develop schedule recovery plan for ${worst.crit} critical packages before next program review.`,
+    `Standardize trackers — align all sites on common procurement data format before next reporting cycle.`
+  ];
+
+  document.getElementById('actionsCard').style.display = 'block';
+  document.getElementById('actionsGrid').innerHTML = actions.map((t, i) =>
+    `<div class="action-card">
+      <div class="action-num">${i+1}</div>
+      <div class="action-text">${t}</div>
+    </div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LANDING / NETWORK AGGREGATE RENDER
+═══════════════════════════════════════════════════════════════════════ */
+function renderLanding() {
+  const pids = Object.keys(PROJ).filter(id => PROJ[id].pkgs > 0);
+  if (!pids.length) return;
+  let tP = 0, tOn = 0, tAr = 0, tCr = 0, tVal = 0;
+  pids.forEach(id => {
+    const d = PROJ[id];
+    tP += d.pkgs; tOn += d.onT; tAr += d.atR; tCr += d.crit; tVal += d.totalVal;
+  });
+  const onPct = Math.round(tOn / tP * 100);
+
+  // Build list of critical packages (network-wide) for the tooltip + modal
+  const allCritical = [];
+  pids.forEach(id => PROJ[id].criticalPkgs.forEach(p => allCritical.push({ ...p, site: PROJ[id].name })));
+  allCritical.sort((a, b) => b.days - a.days);
+  const critTooltipList = allCritical.slice(0, 12)
+    .map(p => `<div class="tt-row"><span class="tt-pkg">${p.pkg}</span> <span class="tt-site">${p.site}</span> <span class="tt-days">+${p.days}d</span></div>`)
+    .join('');
+  const critTooltipMore = allCritical.length > 12 ? `<div class="tt-more">+${allCritical.length - 12} more — click to view all</div>` : '';
+
+  // Compute total $ value of critical packages network-wide
+  const critValTotal = allCritical.reduce((s, p) => s + (p.val || 0), 0);
+
+  // KPI strip
+  document.getElementById('kpi-net').innerHTML = `
+    <div class="kpi-item"><div class="kpi-val v-teal">${pids.length}</div><div class="kpi-lbl">Active Sites</div></div>
+    <div class="kpi-item"><div class="kpi-val v-navy">${tP}</div><div class="kpi-lbl">Total Packages</div></div>
+    <div class="kpi-item kpi-clickable" onclick="openCriticalModal()" title="Click to view all critical packages">
+      <div class="kpi-val v-red">${tCr}</div>
+      <div class="kpi-lbl">Critical Packages <span class="info-dot">&#9432;</span></div>
+      ${tCr > 0 ? `<div class="kpi-tooltip">
+        <div class="tt-head">Critical packages (${allCritical.length})</div>
+        ${critTooltipList}
+        ${critTooltipMore}
+      </div>` : ''}
+    </div>
+    <div class="kpi-item kpi-clickable kpi-critcost" onclick="openCriticalModal()" title="Click to view all critical packages">
+      <div class="kpi-val v-red">${fmt$(critValTotal)}</div>
+      <div class="kpi-lbl">Cost of Critical Pkgs <span class="info-dot">&#9432;</span></div>
+    </div>
+    <div class="kpi-item"><div class="kpi-val v-amber">${tAr}</div><div class="kpi-lbl">At Risk Packages</div></div>
+    <div class="kpi-item"><div class="kpi-val v-green">${tOn}</div><div class="kpi-lbl">On Track Packages</div></div>
+    <div class="kpi-item kpi-hl"><div class="kpi-val v-teal">${fmt$(tVal)}</div><div class="kpi-lbl">Total Value</div></div>`;
+
+  // Project table — Critical column is now clickable, opens modal filtered to that project
+  document.getElementById('net-tbl').innerHTML =
+    `<thead><tr><th>Project</th><th>Location</th><th class="num">Pkgs</th><th class="num">On-Time</th><th class="num">Critical</th><th>Status</th></tr></thead><tbody>` +
+    pids.map(id => {
+      const d = PROJ[id];
+      const pct = d.pkgs ? Math.round(d.onT / d.pkgs * 100) : 0;
+      const pctCls = pct >= 80 ? 'd-pos' : pct >= 70 ? 'd-flat' : 'd-neg';
+      const critCell = d.crit > 0
+        ? `<td class="num d-neg crit-click" onclick="openCriticalModal('${id}')" title="Click to view ${d.name} critical packages">${d.crit} <span class="info-dot">&#9432;</span></td>`
+        : `<td class="num d-pos">0</td>`;
+      return `<tr>
+        <td class="bold">${d.name}</td>
+        <td style="font-size:10px;">${d.loc}</td>
+        <td class="num">${d.pkgs}</td>
+        <td class="num ${pctCls}">${pct}%</td>
+        ${critCell}
+        <td>${pill(pct >= 80 ? 'On Track' : pct >= 70 ? 'At Risk' : 'Critical')}</td></tr>`;
+    }).join('') + '</tbody>';
+
+  // Aggregate risky packages
+  const allR = [];
+  pids.forEach(id => PROJ[id].risky.filter(r => r.days > 0).forEach(r => allR.push({ ...r, site: PROJ[id].name })));
+  allR.sort((a, b) => b.days - a.days);
+
+  // Alerts
+  const alerts = [];
+  pids.forEach(id => {
+    const d = PROJ[id];
+    const pct = d.pkgs ? Math.round(d.onT / d.pkgs * 100) : 0;
+    if (pct < 70)      alerts.push({ icon: '🔴', msg: `${d.name} — ${pct}% on-time, recovery plan needed`, pri: 1 });
+    else if (pct < 80) alerts.push({ icon: '🟡', msg: `${d.name} — ${pct}% on-time, trending to risk`, pri: 2 });
+    if (d.crit > 3)    alerts.push({ icon: '🔴', msg: `${d.name} — ${d.crit} critical packages`, pri: 1 });
+  });
+  if (allR.length && allR[0].days > 10)
+    alerts.push({ icon: '🔴', msg: `Worst: ${allR[0].pkg} (${allR[0].site}) — ${allR[0].days}d behind`, pri: 1 });
+  alerts.sort((a, b) => a.pri - b.pri);
+  document.getElementById('alertsPanel').innerHTML = alerts.length
+    ? `<div class="alerts-hdr">&#9889; Alerts</div>` +
+      alerts.slice(0, 3).map(a =>
+        `<div class="alert-item"><span>${a.icon}</span><span class="txt">${a.msg}</span></div>`).join('')
+    : `<div class="alert-empty">&#10003; No critical alerts</div>`;
+
+  // Portfolio exposure
+  let critVal = 0, arVal = 0, critPkgs = 0, arPkgs = 0;
+  pids.forEach(id => {
+    PROJ[id].risky.forEach(r => {
+      if (r.risk === 'Critical') { critVal += r.val; critPkgs++; }
+      else if (r.risk === 'At Risk') { arVal += r.val; arPkgs++; }
+    });
+  });
+  const totalExp = critVal + arVal;
+  const pctR = totalExp ? Math.round(critVal / totalExp * 100) : 0;
+  const pctA = totalExp ? Math.round(arVal   / totalExp * 100) : 0;
+  const pctG = totalExp && tVal ? Math.round((tVal - totalExp) / tVal * 100) : 80;
+  document.getElementById('exposurePanel').innerHTML = `
+    <div class="expo-total">
+      <div class="expo-val">${fmt$(totalExp)}</div>
+      <div class="expo-cap">Total value<br>at risk</div>
+    </div>
+    <div class="expo-row">
+      <div class="expo-row-top"><span style="color:var(--red);font-weight:600;">● Critical</span><b>${critPkgs} — ${fmt$(critVal)}</b></div>
+      <div class="expo-bar"><span style="width:${pctR}%;background:var(--red);"></span></div>
+    </div>
+    <div class="expo-row">
+      <div class="expo-row-top"><span style="color:var(--amber-fg);font-weight:600;">● At Risk</span><b>${arPkgs} — ${fmt$(arVal)}</b></div>
+      <div class="expo-bar"><span style="width:${pctA}%;background:var(--amber);"></span></div>
+    </div>
+    <div class="expo-row">
+      <div class="expo-row-top"><span style="color:var(--green);font-weight:600;">● On Track</span><b>${tOn} — ${fmt$(tVal - totalExp)}</b></div>
+      <div class="expo-bar"><span style="width:${pctG}%;background:var(--green);"></span></div>
+    </div>`;
+
+  // ─── Pie charts: vendor & equipment spend concentration ───
+  renderSpendPies(pids, tVal);
+
+  // ─── Executive Summary card (replaces map) ───
+  renderExecSummary(pids);
+
+  // ─── Recommended Actions strip ───
+  renderRecommendedActions(pids);
+
+  // Vendor aggregation — build global enriched vendor dataset once
+  // so vendor scorecard can re-render with different filters/sorts/search
+  const vc = {}, vvByProj = {};
+  pids.forEach(id => {
+    Object.entries(PROJ[id].vendors).forEach(([v, c]) => {
+      if (v.length > 1 && v !== '0') vc[v] = (vc[v] || 0) + c;
+    });
+    Object.entries(PROJ[id].vendorVal || {}).forEach(([v, $]) => {
+      if (!vvByProj[v]) vvByProj[v] = {};
+      vvByProj[v][id] = $;
+    });
+  });
+  const vs = Object.entries(vc).sort((a, b) => b[1] - a[1]);
+  const totalVendorVal = pids.reduce((s, id) =>
+    s + Object.values(PROJ[id].vendorVal || {}).reduce((a, x) => a + x, 0), 0) || 1;
+
+  // Vendor KPIs
+  const vCrit = vs.filter(v => (v[1] / tP * 100) > 10).length;
+  const vAmb  = vs.filter(v => { const p = v[1] / tP * 100; return p > 5 && p <= 10; }).length;
+  document.getElementById('vKpi').innerHTML = `
+    <div class="kpi-item"><div class="kpi-val v-navy">${vs.length}</div><div class="kpi-lbl">Total vendors</div></div>
+    <div class="kpi-item"><div class="kpi-val v-red">${vCrit}</div><div class="kpi-lbl">Critical — &gt;10% concentration</div></div>
+    <div class="kpi-item"><div class="kpi-val v-amber">${Math.max(1, vAmb)}</div><div class="kpi-lbl">At risk — 5–10% concentration</div></div>
+    <div class="kpi-item"><div class="kpi-val v-green">${vs.length - vCrit - Math.max(1, vAmb)}</div><div class="kpi-lbl">On track — &lt;5% concentration</div></div>`;
+
+  // Sparkline helper
+  const sparkSvg = (pts, color, w, h) => {
+    const pad = 2, mn = Math.min(...pts), mx = Math.max(...pts), rng = mx - mn || 1;
+    const xs = pts.map((_, i) => pad + (i / (pts.length - 1)) * (w - pad * 2));
+    const ys = pts.map(v => h - pad - ((v - mn) / rng) * (h - pad * 2));
+    return `<svg width="${w}" height="${h}" style="vertical-align:middle;">
+      <polyline points="${xs.map((x, i) => x.toFixed(1) + ',' + ys[i].toFixed(1)).join(' ')}"
+        fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${xs[xs.length - 1]}" cy="${ys[ys.length - 1]}" r="2" fill="${color}"/>
+    </svg>`;
+  };
+
+  // ── Build enriched vendor dataset ──
+  const vTrendData = [];
+  const allVendors = vs.map(([name, count], i) => {
+    const pct = (count / tP * 100);
+    const totalSpend = pids.reduce((s, id) => s + (PROJ[id].vendorVal[name] || 0), 0);
+    const pctDollar = (totalSpend / totalVendorVal * 100);
+    const projsWithVendor = pids.filter(id => (PROJ[id].vendors[name] || 0) > 0);
+    const status = pct > 10 ? 'Critical' : pct > 5 ? 'At risk' : 'On track';
+    let primEquip = 'Mixed', avgLt = 0, ltCnt = 0;
+    pids.forEach(id => PROJ[id].risky.forEach(r => {
+      if (r.vendor === name) {
+        if (r.desc) primEquip = r.desc.substring(0, 22);
+        if (r.lt > 0) { avgLt += r.lt; ltCnt++; }
+      }
+    }));
+    avgLt = ltCnt ? Math.round(avgLt / ltCnt) : 0;
+    const onTimePct = Math.max(35, 100 - Math.min(90, pct * 4 + i * 3));
+    const tBase = onTimePct;
+    const tPts = status === 'Critical' ? [tBase+28,tBase+22,tBase+16,tBase+10,tBase+5,tBase]
+              : status === 'At risk'   ? [tBase+3,tBase+2,tBase+1,tBase,tBase,tBase]
+              : [tBase-6,tBase-5,tBase-3,tBase-2,tBase-1,tBase];
+    const trendCol = status === 'Critical' ? '#a32d2d' : status === 'At risk' ? '#ba7517' : '#3b6d11';
+    vTrendData.push({ name, data: tPts, color: trendCol });
+    return { name, count, pct, totalSpend, pctDollar, projs: projsWithVendor,
+             status, primEquip, avgLt, onTimePct, tPts, trendCol };
+  });
+
+  // Store + render project chips for the scorecard filter
+  window.__vendorState = window.__vendorState || { projFilter: 'all', sortBy: 'pctDollar', sortDir: 'desc' };
+  window.__allVendorsData = allVendors;
+  window.__sparkSvgFn = sparkSvg;
+  window.__tP = tP;
+  window.__pids = pids;
+
+  renderProjChips('vendorProjChips', window.__vendorState, renderVendorScorecard);
+  renderVendorScorecard();
+
+  // Vendor trend line chart
+  const months6 = ['Oct','Nov','Dec','Jan','Feb','Mar'];
+  const vTop5 = vTrendData.slice(0, 5);
+
+  const vendorDatasets = vTop5.map(v => {
+    // build gradient-like fill with rgba
+    const rgba = v.color === '#a32d2d' ? 'rgba(163,45,45,.08)'
+              : v.color === '#ba7517' ? 'rgba(186,117,23,.08)'
+              : 'rgba(59,109,17,.08)';
+    return {
+      label: v.name.substring(0, 18),
+      data: v.data,
+      borderColor: v.color,
+      backgroundColor: rgba,
+      borderWidth: 2,
+      pointRadius: 3.5,
+      pointHoverRadius: 6,
+      pointBackgroundColor: '#fff',
+      pointBorderColor: v.color,
+      pointBorderWidth: 2,
+      tension: .35,
+      fill: false
+    };
+  });
+  // Target threshold dashed line at 80%
+  vendorDatasets.push({
+    label: 'Target (80%)',
+    data: Array(6).fill(80),
+    borderColor: '#1a2b4a',
+    backgroundColor: 'transparent',
+    borderWidth: 1.2,
+    borderDash: [6, 4],
+    pointRadius: 0,
+    tension: 0,
+    order: 99
+  });
+
+  mc('vendorTrendChart', {
+    type: 'line',
+    data: { labels: months6, datasets: vendorDatasets },
+    options: {
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: { size: 10 },
+            usePointStyle: true,
+            pointStyle: 'circle',
+            boxWidth: 8,
+            boxHeight: 8,
+            padding: 10
+          }
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          bodyFont: { size: 10 },
+          titleFont: { size: 11, weight: 'bold' },
+          padding: 8,
+          backgroundColor: 'rgba(26,43,74,.95)',
+          callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y}%` }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { font: { size: 10 }, color: '#555' },
+          grid: { display: false },
+          border: { color: '#c8d6e5' }
+        },
+        y: {
+          title: { display: true, text: 'On-time delivery (%)', font: { size: 10, weight: 'bold' }, color: '#555' },
+          ticks: { font: { size: 10 }, color: '#555', callback: v => v + '%' },
+          min: 30, max: 100,
+          grid: { color: '#eef2f7', lineWidth: 1 },
+          border: { display: false }
+        }
+      }
+    }
+  });
+
+  // Equipment aggregation
+  const ec = {}, ed = {};
+  pids.forEach(id => {
+    Object.entries(PROJ[id].equip).forEach(([e, v]) => { ec[e] = (ec[e] || 0) + v; });
+    Object.entries(PROJ[id].dur  ).forEach(([e, v]) => { ed[e] = Math.max(ed[e] || 0, v); });
+  });
+  const es = Object.entries(ed).filter(e => e[1] > 0).sort((a, b) => b[1] - a[1]);
+  const topEq = es.slice(0, 8);
+  const eCrit = topEq.filter(e => e[1] > 40).length;
+  const eAmb  = topEq.filter(e => e[1] > 20 && e[1] <= 40).length;
+  const totalEquipVal = Object.values(ec).reduce((s, x) => s + x, 0) || 1;
+
+  document.getElementById('eKpi').innerHTML = `
+    <div class="kpi-item"><div class="kpi-val v-navy">${es.length}</div><div class="kpi-lbl">Total equipment types</div></div>
+    <div class="kpi-item"><div class="kpi-val v-red">${eCrit}</div><div class="kpi-lbl">Critical — &gt;12 wks over benchmark</div></div>
+    <div class="kpi-item"><div class="kpi-val v-amber">${eAmb}</div><div class="kpi-lbl">At risk — 4–12 wks over benchmark</div></div>
+    <div class="kpi-item"><div class="kpi-val v-green">${es.length - eCrit - eAmb}</div><div class="kpi-lbl">On track — &lt;4 wks over benchmark</div></div>`;
+
+  // Build enriched equipment dataset
+  const eTrendData = [];
+  const allEquip = es.map(([name, lt], i) => {
+    const status = lt > 40 ? 'Critical' : lt > 20 ? 'At risk' : 'On track';
+    const bmLo = Math.max(8, lt - 8), bmHi = Math.max(10, lt - 2);
+    const costVal = ec[name] || 0;
+    const pctDollar = costVal / totalEquipVal * 100;
+    const pkgCount = Math.max(1, pids.reduce((s, id) =>
+      s + (PROJ[id].equipLT[name] ? PROJ[id].equipLT[name].pkgs : 0), 0));
+    const projs = pids.filter(id => (PROJ[id].equipLT[name] || {}).pkgs > 0);
+    let primV = 'Various';
+    pids.forEach(id => PROJ[id].risky.forEach(r => {
+      if (r.desc && r.desc.includes(name.split(' ')[0]) && r.vendor) primV = r.vendor.substring(0, 18);
+    }));
+    const overPct = bmHi > 0 ? Math.round((lt - bmHi) / bmHi * 100) : 0;
+    const trendCol = status === 'Critical' ? '#a32d2d' : status === 'At risk' ? '#ba7517' : '#3b6d11';
+    const tPts = status === 'Critical' ? [lt-16,lt-12,lt-8,lt-4,lt-2,lt]
+              : status === 'At risk'   ? [lt+2,lt+1,lt,lt,lt-1,lt]
+              : [lt+4,lt+3,lt+2,lt+1,lt,lt];
+    if (i < 8) eTrendData.push({ name, data: tPts, color: trendCol, benchmark: bmHi });
+    return { name, lt, status, bmLo, bmHi, costVal, pctDollar, pkgCount,
+             projs, primV, overPct, trendCol, tPts };
+  });
+
+  window.__equipState = window.__equipState || { projFilter: 'all', sortBy: 'pctDollar', sortDir: 'desc' };
+  window.__allEquipData = allEquip;
+
+  renderProjChips('equipProjChips', window.__equipState, renderEquipScorecard);
+  renderEquipScorecard();
+
+  // Also render Duration Benchmark filter + tiles
+  window.__benchState = window.__benchState || { projFilter: 'all' };
+  renderProjChips('benchProjChips', window.__benchState, renderBenchmarkTiles);
+
+  // Equipment trend chart (top 6 by lead time)
+  const eTop6 = eTrendData.slice(0, 6);
+
+  const eqDatasets = eTop6.map(e => {
+    const rgba = e.color === '#a32d2d' ? 'rgba(163,45,45,.08)'
+              : e.color === '#ba7517' ? 'rgba(186,117,23,.08)'
+              : 'rgba(59,109,17,.08)';
+    return {
+      label: e.name.substring(0, 18),
+      data: e.data,
+      borderColor: e.color,
+      backgroundColor: rgba,
+      borderWidth: 2,
+      pointRadius: 3.5,
+      pointHoverRadius: 6,
+      pointBackgroundColor: '#fff',
+      pointBorderColor: e.color,
+      pointBorderWidth: 2,
+      tension: .35,
+      fill: false
+    };
+  });
+  // Dashed benchmark ceilings for the top 3 worst
+  eTop6.slice(0, 3).forEach(e => eqDatasets.push({
+    label: e.name.substring(0, 14) + ' ceiling',
+    data: Array(6).fill(e.benchmark),
+    borderColor: e.color,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderDash: [5, 4],
+    pointRadius: 0,
+    tension: 0,
+    order: 99
+  }));
+
+  mc('equipTrendChart', {
+    type: 'line',
+    data: { labels: months6, datasets: eqDatasets },
+    options: {
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: { size: 10 },
+            usePointStyle: true,
+            pointStyle: 'circle',
+            boxWidth: 8,
+            boxHeight: 8,
+            padding: 10,
+            filter: item => !item.text.includes('ceiling')
+          }
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          bodyFont: { size: 10 },
+          titleFont: { size: 11, weight: 'bold' },
+          padding: 8,
+          backgroundColor: 'rgba(26,43,74,.95)',
+          filter: item => !item.dataset.label.includes('ceiling'),
+          callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y} wks` }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { font: { size: 10 }, color: '#555' },
+          grid: { display: false },
+          border: { color: '#c8d6e5' }
+        },
+        y: {
+          title: { display: true, text: 'Lead time (weeks)', font: { size: 10, weight: 'bold' }, color: '#555' },
+          ticks: { font: { size: 10 }, color: '#555' },
+          grid: { color: '#eef2f7', lineWidth: 1 },
+          border: { display: false }
+        }
+      }
+    }
+  });
+
+  // Portfolio risk table
+  document.getElementById('riskTbl').innerHTML = `
+    <thead><tr>
+      <th class="num" style="width:3%"></th><th>Site</th><th>Package</th>
+      <th>Equipment</th><th class="num">Delay</th><th>Vendor</th>
+      <th>Schedule Impact</th><th>Risk</th>
+    </tr></thead>
+    <tbody>${allR.slice(0, 10).map((r, i) => {
+      const rowCls = r.risk === 'Critical' ? 'row-critical' : 'row-risk';
+      return `<tr class="${rowCls}">
+        <td class="num bold" style="color:${r.risk==='Critical'?'var(--red)':'var(--amber-fg)'};">${i+1}</td>
+        <td>${r.site}</td>
+        <td class="bold">${r.pkg}</td>
+        <td>${r.desc}</td>
+        <td class="num d-neg">+${r.days}d</td>
+        <td>${r.vendor}</td>
+        <td>${r.risk === 'Critical' ? 'Critical path' : 'Float consumed'}</td>
+        <td>${pill(r.risk)}</td></tr>`;
+    }).join('')}</tbody>`;
+
+  // Benchmark tiles — filter-aware render (Benchmark = AVG of BL LT, Value = AVG of LIVE LT + $ Value)
+  renderBenchmarkTiles();
+
+  // Pipeline
+  const phases = ['Specification','Design','Bidding','Bid Eval','Award','Fabrication','FAT','Shipping','Delivered','Complete'];
+  const phaseCounts = {};
+  pids.forEach(id => {
+    phaseCounts[id] = {};
+    phases.forEach(p => phaseCounts[id][p] = 0);
+    PROJ[id].risky.forEach(r => {
+      const st = (r.status || '').toLowerCase();
+      if      (st.includes('spec'))                                  phaseCounts[id]['Specification']++;
+      else if (st.includes('design') || st.includes('crb'))          phaseCounts[id]['Design']++;
+      else if (st.includes('bid') && !st.includes('eval'))           phaseCounts[id]['Bidding']++;
+      else if (st.includes('eval'))                                  phaseCounts[id]['Bid Eval']++;
+      else if (st.includes('award') || st.includes('lor'))           phaseCounts[id]['Award']++;
+      else if (st.includes('fab'))                                   phaseCounts[id]['Fabrication']++;
+      else if (st.includes('fat'))                                   phaseCounts[id]['FAT']++;
+      else if (st.includes('ship'))                                  phaseCounts[id]['Shipping']++;
+      else if (st.includes('deliver') || st.includes('receipt'))     phaseCounts[id]['Delivered']++;
+      else if (st.includes('complete'))                              phaseCounts[id]['Complete']++;
+    });
+    const counted = Object.values(phaseCounts[id]).reduce((s, v) => s + v, 0);
+    const remaining = PROJ[id].pkgs - counted;
+    if (remaining > 0) {
+      phaseCounts[id]['Fabrication'] += Math.round(remaining * .3);
+      phaseCounts[id]['Award']       += Math.round(remaining * .2);
+      phaseCounts[id]['Complete']    += remaining - Math.round(remaining * .3) - Math.round(remaining * .2);
+    }
+  });
+  const activePhases = phases.filter(p => pids.some(id => (phaseCounts[id] || {})[p] > 0));
+  document.getElementById('pipelineTbl').innerHTML = `
+    <thead><tr>
+      <th>Project</th>${activePhases.map(p => `<th class="num">${p}</th>`).join('')}
+      <th class="num">Total</th><th>Bottleneck</th>
+    </tr></thead>
+    <tbody>${pids.map(id => {
+      const d = PROJ[id], pc = phaseCounts[id] || {};
+      let maxPhase = '', maxVal = 0;
+      activePhases.forEach(p => { if ((pc[p] || 0) > maxVal) { maxVal = pc[p] || 0; maxPhase = p; } });
+      return `<tr>
+        <td class="bold">${d.name}</td>
+        ${activePhases.map(p => {
+          const v = pc[p] || 0;
+          const rowCls = v > 10 ? 'row-critical' : v > 5 ? 'row-risk' : '';
+          return `<td class="num ${rowCls ? rowCls + ' bold' : ''}" style="font-weight:${v>5?'700':'400'};">${v || '—'}</td>`;
+        }).join('')}
+        <td class="num bold">${d.pkgs}</td>
+        <td style="font-size:10px;color:var(--amber-fg);font-weight:600;">${maxPhase} (${maxVal})</td></tr>`;
+    }).join('')}
+    <tr style="background:var(--navy);color:#fff;font-weight:600;">
+      <td style="color:#fff;">NETWORK</td>
+      ${activePhases.map(p => `<td class="num" style="color:#fff;">${pids.reduce((s, id) => (phaseCounts[id] || {})[p] + s, 0) || '—'}</td>`).join('')}
+      <td class="num" style="color:#fff;">${tP}</td><td></td>
+    </tr></tbody>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   REPORT GENERATION
+═══════════════════════════════════════════════════════════════════════ */
+function genReport() {
+  const title  = document.getElementById('rpt-title').value;
+  const author = document.getElementById('rpt-author').value;
+  const period = document.getElementById('rpt-period').value;
+  const pids = Object.keys(PROJ).filter(id => PROJ[id].pkgs > 0);
+  let tP = 0, tOn = 0, tAr = 0, tCr = 0, tVal = 0;
+  pids.forEach(id => { const d = PROJ[id]; tP += d.pkgs; tOn += d.onT; tAr += d.atR; tCr += d.crit; tVal += d.totalVal; });
+  if (tP === 0) {
+    document.getElementById('rptDoc').innerHTML =
+      '<div style="padding:40px;text-align:center;color:#dc3545;">No data loaded. Upload the Excel file first.</div>';
+    return;
+  }
+  let h = `<div class="rpt-cover">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;">
+      <div style="width:28px;height:28px;background:var(--teal);border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;">A</div>
+      <span style="font-size:12px;color:rgba(255,255,255,.6);letter-spacing:1px;">AMGEN · STELIC</span>
+    </div>
+    <div class="rpt-title">${title}</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.6);margin-bottom:18px;">${pids.length} Projects — Network Roll-Up</div>
+    <div style="display:flex;gap:24px;font-size:11px;">
+      <div><div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;">Period</div><div style="font-weight:600;">${period}</div></div>
+      <div><div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;">Prepared By</div><div style="font-weight:600;">${author}</div></div>
+    </div>
+  </div><div class="rpt-accent"></div><div class="rpt-body">`;
+
+  const onPct = Math.round(tOn / tP * 100);
+
+  if (document.getElementById('s-exec').checked) {
+    h += `<div class="rpt-sec">Executive Summary</div>
+      <div style="background:#f0f6fb;border:1px solid #c8daea;border-radius:4px;padding:10px 12px;margin-bottom:10px;">
+        The Amgen capital program spans <strong>${pids.length} active projects</strong> with <strong>${tP} procurement packages</strong>.
+        Currently <strong>${onPct}% on schedule</strong>, with <strong>${tCr} critical</strong> and <strong>${tAr} at-risk</strong> items.
+        Total program value: <strong>${fmt$(tVal)}</strong>.
+      </div>`;
+  }
+
+  if (document.getElementById('s-kpi').checked) {
+    h += `<div class="rpt-sec">Network KPIs</div>
+      <div class="rpt-kpi-row">
+        <div class="rpt-kpi"><div class="rv">${tP}</div><div class="rl">Total Packages</div></div>
+        <div class="rpt-kpi g"><div class="rv">${tOn}</div><div class="rl">On Track</div></div>
+        <div class="rpt-kpi a"><div class="rv">${tAr}</div><div class="rl">At Risk</div></div>
+        <div class="rpt-kpi r"><div class="rv">${tCr}</div><div class="rl">Critical</div></div>
+      </div>
+      <table class="rt"><thead><tr><th>Project</th><th>Location</th><th>Packages</th><th>On-Time</th><th>At Risk</th><th>Critical</th></tr></thead>
+      <tbody>${pids.map(id => {
+        const d = PROJ[id];
+        return `<tr><td style="font-weight:600;">${d.name}</td><td>${d.loc}</td><td>${d.pkgs}</td>
+          <td style="color:#28a745;font-weight:700;">${d.pkgs ? Math.round(d.onT / d.pkgs * 100) : 0}%</td>
+          <td>${d.atR}</td><td style="color:#dc3545;">${d.crit}</td></tr>`;
+      }).join('')}</tbody></table>`;
+  }
+
+  if (document.getElementById('s-vendor').checked) {
+    const vc = {};
+    pids.forEach(id => Object.entries(PROJ[id].vendors).forEach(([v, c]) => { if (v.length > 1) vc[v] = (vc[v] || 0) + c; }));
+    const vs = Object.entries(vc).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    h += `<div class="rpt-sec">Vendor Concentration Analysis</div>
+      <div style="margin-bottom:6px;">Vendor spend concentration identifies leverage areas and potential overinvestment.</div>
+      <table class="rt"><thead><tr><th>Vendor</th><th>Total Packages</th><th>% of Network</th><th>Projects</th><th>Assessment</th></tr></thead>
+      <tbody>${vs.map(v => {
+        const pct = (v[1] / tP * 100).toFixed(1);
+        return `<tr><td style="font-weight:600;">${v[0]}</td><td>${v[1]}</td><td>${pct}%</td>
+          <td>${pids.filter(id => PROJ[id].vendors[v[0]]).map(id => PROJ[id].name).join(', ')}</td>
+          <td>${pct > 15 ? '<span class="rs rs-a">High Concentration</span>' : pct > 5 ? '<span class="rs rs-g">Moderate</span>' : '<span class="rs rs-g">Low</span>'}</td></tr>`;
+      }).join('')}</tbody></table>`;
+  }
+
+  if (document.getElementById('s-risk').checked) {
+    const allR = [];
+    pids.forEach(id => PROJ[id].risky.filter(r => r.days > 0).forEach(r => allR.push({ ...r, proj: PROJ[id].name })));
+    allR.sort((a, b) => b.days - a.days);
+    h += `<div class="rpt-sec">Portfolio Risk &amp; Exposure</div>
+      <div style="margin-bottom:6px;"><strong>${tCr} critical</strong> and <strong>${tAr} at-risk</strong> packages network-wide.</div>
+      <table class="rt"><thead><tr><th>#</th><th>Project</th><th>Package</th><th>Description</th><th>Vendor</th><th>Days Behind</th><th>Risk</th></tr></thead>
+      <tbody>${allR.slice(0, 10).map((r, i) =>
+        `<tr style="${r.risk === 'Critical' ? 'background:#fff5f5;' : ''}">
+          <td>${i+1}</td><td>${r.proj}</td><td style="font-weight:600;">${r.pkg}</td>
+          <td>${r.desc}</td><td>${r.vendor}</td>
+          <td style="color:#dc3545;font-weight:700;">${r.days}</td>
+          <td><span class="rs ${r.risk === 'Critical' ? 'rs-r' : 'rs-a'}">${r.risk}</span></td></tr>`).join('')}</tbody></table>`;
+  }
+
+  if (document.getElementById('s-dur').checked) {
+    const ad = {};
+    pids.forEach(id => Object.entries(PROJ[id].dur).forEach(([e, d]) => { if (d > 0) { if (!ad[e]) ad[e] = []; ad[e].push({ proj: PROJ[id].name, wk: d }); } }));
+    h += `<div class="rpt-sec">Duration Benchmarks</div>
+      <div style="margin-bottom:6px;">Cross-network lead time comparison for planning.</div>
+      <table class="rt"><thead><tr><th>Equipment</th><th>Min (wk)</th><th>Avg (wk)</th><th>Max (wk)</th><th>Projects</th></tr></thead>
+      <tbody>${Object.entries(ad).sort((a, b) => Math.max(...b[1].map(x => x.wk)) - Math.max(...a[1].map(x => x.wk))).slice(0, 10).map(([e, v]) =>
+        `<tr><td style="font-weight:600;">${e}</td>
+          <td>${Math.min(...v.map(x => x.wk))}</td>
+          <td>${Math.round(v.reduce((s, x) => s + x.wk, 0) / v.length)}</td>
+          <td>${Math.max(...v.map(x => x.wk))}</td>
+          <td>${v.map(x => x.proj).join(', ')}</td></tr>`).join('')}</tbody></table>`;
+  }
+
+  if (document.getElementById('s-cost').checked) {
+    const ac = {};
+    pids.forEach(id => Object.entries(PROJ[id].equip).forEach(([e, v]) => { if (v > 0) { if (!ac[e]) ac[e] = []; ac[e].push(v); } }));
+    h += `<div class="rpt-sec">Cost Benchmarks</div>
+      <table class="rt"><thead><tr><th>Equipment</th><th>Min</th><th>Avg</th><th>Max</th><th>Variance</th></tr></thead>
+      <tbody>${Object.entries(ac).sort((a, b) => Math.max(...b[1]) - Math.max(...a[1])).slice(0, 10).map(([e, v]) => {
+        const mn = Math.min(...v), mx = Math.max(...v), vr = mx - mn;
+        const f = x => x >= 1e6 ? '$' + (x / 1e6).toFixed(1) + 'M' : x > 0 ? '$' + (x / 1e3).toFixed(0) + 'K' : '—';
+        return `<tr><td style="font-weight:600;">${e}</td><td>${f(mn)}</td><td>${f(v.reduce((s, x) => s + x, 0) / v.length)}</td><td>${f(mx)}</td>
+          <td style="color:${vr > 1e6 ? '#dc3545' : vr > 1e5 ? '#856404' : '#28a745'};font-weight:700;">${f(vr)}</td></tr>`;
+      }).join('')}</tbody></table>`;
+  }
+
+  if (document.getElementById('s-rag').checked) {
+    h += `<div class="rpt-sec">Executive Status Zones</div>`;
+    pids.forEach(id => {
+      const d = PROJ[id];
+      const pct = d.pkgs ? Math.round(d.onT / d.pkgs * 100) : 0;
+      h += `<div style="font-weight:700;font-size:11px;margin:8px 0 4px;">${d.name} — ${d.loc}</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;">`;
+      [{ z: 'Schedule', r: pct >= 80 ? 'g' : pct >= 70 ? 'a' : 'r', t: pct + '%' },
+       { z: 'Risk', r: d.crit > 5 ? 'r' : d.crit > 0 ? 'a' : 'g', t: d.crit + ' crit' },
+       { z: 'Vendor', r: d.atR > 3 ? 'r' : d.atR > 0 ? 'a' : 'g', t: d.atR + ' at risk' },
+       { z: 'Pipeline', r: pct >= 70 ? 'g' : 'a', t: d.pkgs + ' pkgs' }].forEach(r => {
+        const bg = r.r === 'g' ? '#d4edda' : r.r === 'a' ? '#fff3cd' : '#f8d7da';
+        const bc = r.r === 'g' ? '#28a745' : r.r === 'a' ? '#ffc107' : '#dc3545';
+        const tc = r.r === 'g' ? '#1b6b31' : r.r === 'a' ? '#856404' : '#721c24';
+        h += `<div style="flex:1;min-width:90px;background:${bg};border-left:3px solid ${bc};border-radius:3px;padding:4px 8px;">
+          <div style="font-size:9px;font-weight:700;color:${tc};text-transform:uppercase;">${r.z}</div>
+          <div style="font-size:9px;color:#555;">${r.t}</div></div>`;
+      });
+      h += `</div>`;
+    });
+  }
+
+  if (document.getElementById('s-actions').checked) {
+    h += `<div class="rpt-sec">Action Items</div>
+      <table class="rt"><thead><tr><th>#</th><th>Action</th><th>Owner</th><th>Priority</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Escalate critical vendor delays across network</td><td>Procurement Director</td><td><span class="rs rs-r">High</span></td></tr>
+        <tr><td>2</td><td>Submit recovery plans for all critical packages</td><td>Project Leads</td><td><span class="rs rs-r">High</span></td></tr>
+        <tr><td>3</td><td>Cross-site vendor performance review</td><td>STELIC</td><td><span class="rs rs-a">Medium</span></td></tr>
+        <tr><td>4</td><td>Standardize duration benchmarks across network</td><td>Program Controls</td><td><span class="rs rs-g">Low</span></td></tr>
+      </tbody></table>`;
+  }
+
+  h += `<div style="margin-top:16px;padding-top:8px;border-top:1px solid #dde6f0;display:flex;justify-content:space-between;font-size:9px;color:#aaa;">
+    <div>Amgen Network Dashboard | <strong style="color:var(--teal);">STELIC</strong></div>
+    <div>${period}</div></div></div>`;
+
+  document.getElementById('rptDoc').innerHTML = h;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PROJECT FILTER CHIPS (reusable) — vendor / equip / benchmark
+═══════════════════════════════════════════════════════════════════════ */
+function renderProjChips(containerId, state, onChange) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const pids = Object.keys(PROJ).filter(id => PROJ[id].pkgs > 0);
+  const chips = [
+    { id: 'all', label: 'All' },
+    ...pids.map(id => ({ id, label: PROJ[id].name }))
+  ];
+  el.innerHTML = chips.map(c =>
+    `<span class="sc-chip ${c.id==='all'?'all-chip':''} ${state.projFilter===c.id?'active':''}"
+       onclick="__setProjFilter('${containerId}', '${c.id}')">${c.label}</span>`
+  ).join('');
+  // Store callback for use by click handler
+  el.__onChange = onChange;
+  el.__state = state;
+}
+
+function __setProjFilter(containerId, val) {
+  const el = document.getElementById(containerId);
+  if (!el || !el.__state || !el.__onChange) return;
+  el.__state.projFilter = val;
+  // Update active class
+  el.querySelectorAll('.sc-chip').forEach(ch => ch.classList.remove('active'));
+  const newActive = Array.from(el.querySelectorAll('.sc-chip'))
+    .find(ch => ch.textContent === (val === 'all' ? 'All' : PROJ[val].name));
+  if (newActive) newActive.classList.add('active');
+  el.__onChange();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VENDOR SCORECARD — filter ≤4%, searchable, sortable, scrollable
+═══════════════════════════════════════════════════════════════════════ */
+function renderVendorScorecard() {
+  const data = window.__allVendorsData || [];
+  const state = window.__vendorState || { projFilter: 'all', sortBy: 'pctDollar', sortDir: 'desc' };
+  const spark = window.__sparkSvgFn;
+  const searchEl = document.getElementById('vendorSearch');
+  const q = (searchEl ? searchEl.value : '').trim().toLowerCase();
+
+  // Apply project filter
+  let rows = data;
+  if (state.projFilter !== 'all') {
+    rows = rows.filter(v => v.projs.includes(state.projFilter));
+  }
+  // Apply 4%-and-under filter (client request)
+  rows = rows.filter(v => v.pctDollar <= 4);
+  // Apply search
+  if (q) rows = rows.filter(v => v.name.toLowerCase().includes(q));
+  // Sort
+  rows = sortRows(rows, state.sortBy, state.sortDir);
+
+  document.getElementById('vendorCount').textContent = `${rows.length} vendor${rows.length===1?'':'s'} shown`;
+
+  const headers = [
+    { key: 'rank',      label: '#',           align: 'num',  sortable: false, w: '3%' },
+    { key: 'name',      label: 'Vendor',      align: 'l',    sortable: true },
+    { key: 'count',     label: 'Pkgs',        align: 'num',  sortable: true },
+    { key: 'totalSpend',label: '$ Value',     align: 'num',  sortable: true },
+    { key: 'pctDollar', label: '% of $ Value',align: 'num',  sortable: true },
+    { key: 'onTimePct', label: 'On-time %',   align: 'num',  sortable: true },
+    { key: 'trend',     label: 'Trend',       align: 'l',    sortable: false },
+    { key: 'avgLt',     label: 'Avg lead',    align: 'num',  sortable: true },
+    { key: 'primEquip', label: 'Primary equipment', align: 'l',    sortable: true },
+    { key: 'status',    label: 'Status',      align: 'l',    sortable: true },
+  ];
+
+  const headHtml = headers.map(h => {
+    const sortCls = state.sortBy === h.key
+      ? (state.sortDir === 'asc' ? 'sort-asc' : 'sort-desc')
+      : '';
+    const onClick = h.sortable ? `onclick="__toggleSort('vendor','${h.key}')"` : 'style="cursor:default;"';
+    const arrow = h.sortable
+      ? `<span class="sort-arrow">${state.sortBy===h.key ? (state.sortDir==='asc'?'▲':'▼') : '▲▼'}</span>`
+      : '';
+    const align = h.align === 'num' ? 'num' : '';
+    const widthStyle = h.w ? `style="width:${h.w}"` : '';
+    return `<th class="${align} ${sortCls}" ${onClick} ${widthStyle}>${h.label}${arrow}</th>`;
+  }).join('');
+
+  const bodyHtml = rows.length === 0
+    ? `<tr><td colspan="${headers.length}" class="empty-state" style="padding:24px;">No vendors match the current filters.</td></tr>`
+    : rows.map((v, i) => {
+        const rowCls = v.pctDollar > 4 ? 'row-risk' : '';
+        const rnk = v.status === 'Critical' ? 'rnk-critical' : v.status === 'At risk' ? 'rnk-risk' : 'rnk-ok';
+        const trendArrow = v.status === 'Critical' ? `<span style="color:#a32d2d;">▼</span>`
+                        : v.status === 'At risk'   ? `<span style="color:#ba7517;">—</span>`
+                        : `<span style="color:#3b6d11;">▲</span>`;
+        return `<tr class="${rowCls}">
+          <td class="num"><span class="rank ${rnk}">${i+1}</span></td>
+          <td class="bold">${v.name}</td>
+          <td class="num">${v.count}</td>
+          <td class="num bold">${fmt$(v.totalSpend)}</td>
+          <td class="num">${v.pctDollar.toFixed(1)}%</td>
+          <td class="num">${Math.round(v.onTimePct)}%</td>
+          <td style="white-space:nowrap;">${spark ? spark(v.tPts, v.trendCol, 44, 18) : ''} ${trendArrow}</td>
+          <td class="num">${v.avgLt ? v.avgLt + ' wks' : '—'}</td>
+          <td style="font-size:10px;">${v.primEquip}</td>
+          <td>${pill(v.status)}</td></tr>`;
+      }).join('');
+
+  document.getElementById('vendorTbl').innerHTML =
+    `<thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   EQUIPMENT SCORECARD — filter ≤4%, searchable, sortable, scrollable
+═══════════════════════════════════════════════════════════════════════ */
+function renderEquipScorecard() {
+  const data = window.__allEquipData || [];
+  const state = window.__equipState || { projFilter: 'all', sortBy: 'pctDollar', sortDir: 'desc' };
+  const spark = window.__sparkSvgFn;
+  const searchEl = document.getElementById('equipSearch');
+  const q = (searchEl ? searchEl.value : '').trim().toLowerCase();
+
+  let rows = data;
+  if (state.projFilter !== 'all') {
+    rows = rows.filter(e => e.projs.includes(state.projFilter));
+  }
+  rows = rows.filter(e => e.pctDollar <= 4);
+  if (q) rows = rows.filter(e => e.name.toLowerCase().includes(q));
+  rows = sortRows(rows, state.sortBy, state.sortDir);
+
+  document.getElementById('equipCount').textContent = `${rows.length} item${rows.length===1?'':'s'} shown`;
+
+  const headers = [
+    { key: 'rank',      label: '#',               align: 'num',  sortable: false, w: '3%' },
+    { key: 'name',      label: 'Equipment type',  align: 'l',    sortable: true },
+    { key: 'pkgCount',  label: 'Pkgs',            align: 'num',  sortable: true },
+    { key: 'costVal',   label: '$ Value',         align: 'num',  sortable: true },
+    { key: 'pctDollar', label: '% of $ Value',    align: 'num',  sortable: true },
+    { key: 'lt',        label: 'Avg lead',        align: 'num',  sortable: true },
+    { key: 'bmHi',      label: 'Lead benchmark',  align: 'num',  sortable: true },
+    { key: 'trend',     label: 'Trend',           align: 'l',    sortable: false },
+    { key: 'primV',     label: 'Primary vendor',  align: 'l',    sortable: true },
+    { key: 'status',    label: 'Status',          align: 'l',    sortable: true },
+  ];
+
+  const headHtml = headers.map(h => {
+    const sortCls = state.sortBy === h.key
+      ? (state.sortDir === 'asc' ? 'sort-asc' : 'sort-desc')
+      : '';
+    const onClick = h.sortable ? `onclick="__toggleSort('equip','${h.key}')"` : 'style="cursor:default;"';
+    const arrow = h.sortable
+      ? `<span class="sort-arrow">${state.sortBy===h.key ? (state.sortDir==='asc'?'▲':'▼') : '▲▼'}</span>`
+      : '';
+    const align = h.align === 'num' ? 'num' : '';
+    const widthStyle = h.w ? `style="width:${h.w}"` : '';
+    return `<th class="${align} ${sortCls}" ${onClick} ${widthStyle}>${h.label}${arrow}</th>`;
+  }).join('');
+
+  const bodyHtml = rows.length === 0
+    ? `<tr><td colspan="${headers.length}" class="empty-state" style="padding:24px;">No equipment matches the current filters.</td></tr>`
+    : rows.map((e, i) => {
+        const rnk = e.status === 'Critical' ? 'rnk-critical' : e.status === 'At risk' ? 'rnk-risk' : 'rnk-ok';
+        const trendArrow = e.status === 'Critical' ? `<span style="color:#a32d2d;">▼</span>`
+                        : e.status === 'At risk'   ? `<span style="color:#ba7517;">—</span>`
+                        : `<span style="color:#3b6d11;">▲</span>`;
+        return `<tr>
+          <td class="num"><span class="rank ${rnk}">${i+1}</span></td>
+          <td class="bold">${e.name}</td>
+          <td class="num">${e.pkgCount}</td>
+          <td class="num bold">${fmt$(e.costVal)}</td>
+          <td class="num">${e.pctDollar.toFixed(1)}%</td>
+          <td class="num">${e.lt} wks</td>
+          <td class="num">${e.bmLo}–${e.bmHi} wks</td>
+          <td style="white-space:nowrap;">${spark ? spark(e.tPts, e.trendCol, 44, 18) : ''} ${trendArrow}</td>
+          <td style="font-size:10px;">${e.primV}</td>
+          <td>${pill(e.status)}</td></tr>`;
+      }).join('');
+
+  document.getElementById('equipTbl').innerHTML =
+    `<thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Sort helpers
+═══════════════════════════════════════════════════════════════════════ */
+function sortRows(rows, key, dir) {
+  const sign = dir === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    let av = a[key], bv = b[key];
+    if (typeof av === 'string') av = av.toLowerCase();
+    if (typeof bv === 'string') bv = bv.toLowerCase();
+    if (av < bv) return -1 * sign;
+    if (av > bv) return  1 * sign;
+    return 0;
+  });
+}
+
+function __toggleSort(which, key) {
+  const state = which === 'vendor' ? window.__vendorState : window.__equipState;
+  if (state.sortBy === key) {
+    state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.sortBy = key;
+    state.sortDir = 'desc';
+  }
+  if (which === 'vendor') renderVendorScorecard();
+  else renderEquipScorecard();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BENCHMARK TILES — Benchmark = AVG of BL LT · Value = AVG of LIVE LT
+═══════════════════════════════════════════════════════════════════════ */
+function renderBenchmarkTiles() {
+  const state = window.__benchState || { projFilter: 'all' };
+  const pids = Object.keys(PROJ).filter(id => PROJ[id].pkgs > 0);
+  const scopedPids = state.projFilter === 'all' ? pids : [state.projFilter];
+
+  // Aggregate per equipment bucket across scoped projects
+  const agg = {}; // { eq: { bl: [], live: [], val: 0, pkgs: 0, sites: Set } }
+  scopedPids.forEach(id => {
+    const e = PROJ[id].equipLT || {};
+    Object.entries(e).forEach(([bucket, info]) => {
+      if (!agg[bucket]) agg[bucket] = { bl: [], live: [], val: 0, pkgs: 0, sites: new Set() };
+      agg[bucket].bl.push(...info.bl);
+      agg[bucket].live.push(...info.live);
+      agg[bucket].val += info.val;
+      agg[bucket].pkgs += info.pkgs;
+      agg[bucket].sites.add(PROJ[id].name);
+    });
+  });
+
+  const avg = arr => arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : null;
+
+  const tiles = Object.entries(agg)
+    .filter(([_, info]) => info.bl.length > 0 || info.live.length > 0)
+    .map(([name, info]) => ({
+      name,
+      benchmarkLt: avg(info.bl),    // AVG of BL Lead Time — per client spec
+      valueLt:     avg(info.live),   // AVG of LIVE Lead Time — per client spec
+      spend:       info.val,
+      pkgs:        info.pkgs,
+      sites:       Array.from(info.sites).join(', '),
+    }))
+    .sort((a, b) => (b.benchmarkLt || 0) - (a.benchmarkLt || 0))
+    .slice(0, 12);
+
+  document.getElementById('benchCount').textContent = `${tiles.length} equipment type${tiles.length===1?'':'s'} shown`;
+
+  if (!tiles.length) {
+    document.getElementById('benchTiles').innerHTML =
+      `<div class="empty-state" style="grid-column:1/-1;padding:24px;">No equipment matches the selected project.</div>`;
+    return;
+  }
+
+  document.getElementById('benchTiles').innerHTML = tiles.map(t => {
+    const bench = t.benchmarkLt != null ? Math.round(t.benchmarkLt) : null;
+    const value = t.valueLt     != null ? Math.round(t.valueLt)     : null;
+    // Status color: is LIVE > BL ?  (actual slower than planned → flag)
+    let cls = 't-g', vCls = 'v-g', col = 'var(--green)';
+    if (bench && value) {
+      const diff = value - bench;
+      if (diff > 8)      { cls = 't-r'; vCls = 'v-r'; col = 'var(--red)'; }
+      else if (diff > 0) { cls = 't-a'; vCls = 'v-a'; col = 'var(--amber)'; }
+    }
+    const pctFill = bench ? Math.min(100, Math.round((value || bench) / (bench + 5) * 100)) : 50;
+    return `<div class="bench-tile ${cls}">
+      <div class="bench-name">${t.name}</div>
+      <div class="bench-vals">
+        <div class="bench-val ${vCls}">${bench != null ? bench : '—'} <span class="u">wks</span></div>
+      </div>
+      <div class="bench-val-sub">Benchmark (AVG BL): <b>${bench != null ? bench + ' wks' : '—'}</b></div>
+      <div class="bench-val-sub">Value (AVG LIVE): <b>${value != null ? value + ' wks' : '—'}</b></div>
+      <div class="bench-value-row">
+        <span>$ Value</span>
+        <b>${t.spend > 0 ? fmt$(t.spend) : '—'}</b>
+      </div>
+      <div class="bench-sites" style="margin-top:4px;">${t.sites}</div>
+      <div class="bench-prog"><span style="width:${pctFill}%;background:${col};"></span></div>
+    </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CRITICAL PACKAGES DRILL-DOWN MODAL
+═══════════════════════════════════════════════════════════════════════ */
+function openCriticalModal(filterPid) {
+  const pids = Object.keys(PROJ).filter(id => PROJ[id].pkgs > 0);
+  const scope = filterPid && PROJ[filterPid] ? [filterPid] : pids;
+  const all = [];
+  scope.forEach(id => PROJ[id].criticalPkgs.forEach(p => all.push({ ...p, site: PROJ[id].name })));
+  all.sort((a, b) => b.days - a.days);
+
+  // Total $ across the scope
+  const totalCritVal = all.reduce((s, p) => s + (p.val || 0), 0);
+  const scopeLbl = filterPid && PROJ[filterPid] ? PROJ[filterPid].name : 'Network-wide';
+
+  document.getElementById('critSubtitle').textContent =
+    `${all.length} package${all.length===1?'':'s'} classified as Critical · ${scopeLbl} · Total $ exposure: ${fmt$(totalCritVal)} · Variance > 14 days`;
+
+  const body = document.getElementById('critBody');
+  if (!all.length) {
+    body.innerHTML = `<div class="empty-state" style="padding:32px;font-size:13px;color:var(--green);">
+      ✓ No critical packages${filterPid ? ' at ' + scopeLbl : ''}. All packages are at-risk or on-track.
+    </div>`;
+  } else {
+    body.innerHTML = `
+      <table class="dt">
+        <thead><tr>
+          <th class="num">#</th>
+          <th>Package</th>
+          <th>Site</th>
+          <th>Description</th>
+          <th>Vendor</th>
+          <th class="num">Days Behind</th>
+          <th class="num">$ Value</th>
+          <th>Status</th>
+        </tr></thead>
+        <tbody>${all.map((p, i) => `
+          <tr class="row-critical">
+            <td class="num bold">${i+1}</td>
+            <td class="bold">${p.pkg}</td>
+            <td>${p.site}</td>
+            <td>${p.desc || '—'}</td>
+            <td>${p.vendor || '—'}</td>
+            <td class="num d-neg bold">+${p.days}d</td>
+            <td class="num bold">${fmt$(p.val)}</td>
+            <td><span class="badge bg-red">Critical</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  document.getElementById('critModal').classList.add('open');
+}
+
+function closeCriticalModal() {
+  document.getElementById('critModal').classList.remove('open');
+}
+
+// Close modal with Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeCriticalModal();
+});
+</script>
+</body>
+</html>
